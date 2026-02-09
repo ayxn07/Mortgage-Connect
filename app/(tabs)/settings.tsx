@@ -1,0 +1,315 @@
+import React, { useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  User,
+  Bell,
+  Lock,
+  CreditCard,
+  Globe,
+  HelpCircle,
+  FileText,
+  LogOut,
+  ChevronRight,
+  Mail,
+  Smartphone,
+  Shield,
+} from '@/components/Icons';
+import { useRouter } from 'expo-router';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { useColorScheme } from 'nativewind';
+
+type SettingItemProps = {
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+  onPress?: () => void;
+  showChevron?: boolean;
+  rightElement?: React.ReactNode;
+};
+
+function SettingItem({
+  icon,
+  title,
+  subtitle,
+  onPress,
+  showChevron = true,
+  rightElement,
+}: SettingItemProps) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      disabled={!onPress}
+      className={`mb-3 flex-row items-center rounded-2xl border p-4 ${
+        isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
+      }`}>
+      <View className={`mr-3 h-10 w-10 items-center justify-center rounded-xl ${
+        isDark ? 'bg-white' : 'bg-black'
+      }`}>
+        {icon}
+      </View>
+      <View className="flex-1">
+        <Text className={`font-semibold ${isDark ? 'text-white' : 'text-black'}`}>
+          {title}
+        </Text>
+        {subtitle && (
+          <Text className={`mt-1 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            {subtitle}
+          </Text>
+        )}
+      </View>
+      {rightElement ||
+        (showChevron && (
+          <ChevronRight color={isDark ? '#666' : '#999'} size={20} />
+        ))}
+    </TouchableOpacity>
+  );
+}
+
+function SectionHeader({ title }: { title: string }) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  
+  return (
+    <Text className={`mb-3 px-1 text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+      {title}
+    </Text>
+  );
+}
+
+export default function SettingsScreen() {
+  const router = useRouter();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const [pushEnabled, setPushEnabled] = useState(true);
+  const [emailEnabled, setEmailEnabled] = useState(true);
+  const [smsEnabled, setSmsEnabled] = useState(false);
+
+  const handleLogout = () => {
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert('Success', 'You have been logged out');
+        },
+      },
+    ]);
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This action cannot be undone. All your data will be permanently deleted.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => Alert.alert('Account Deleted', 'Your account has been deleted'),
+        },
+      ]
+    );
+  };
+
+  return (
+    <SafeAreaView className={`flex-1 ${isDark ? 'bg-black' : 'bg-gray-50'}`}>
+      {/* Header */}
+      <View className="px-6 pt-2 pb-6">
+        <View className="flex-row items-center justify-between">
+          <View>
+            <Text className={`text-sm mb-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+              Manage your account
+            </Text>
+            <Text className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+              Settings
+            </Text>
+          </View>
+          <ThemeToggle />
+        </View>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={{
+          paddingHorizontal: 24,
+          paddingBottom: 120,
+        }}
+        showsVerticalScrollIndicator={false}>
+        
+        {/* Profile Section */}
+        <View className="mb-6">
+          <SectionHeader title="Profile" />
+          <View className={`mb-3 flex-row items-center gap-4 rounded-2xl border p-5 ${
+            isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
+          }`}>
+            <View className={`h-16 w-16 items-center justify-center rounded-full ${
+              isDark ? 'bg-white' : 'bg-black'
+            }`}>
+              <Text className={`text-xl font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+                JD
+              </Text>
+            </View>
+            <View className="flex-1">
+              <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+                John Doe
+              </Text>
+              <Text className={isDark ? 'text-gray-400' : 'text-gray-500'}>
+                john.doe@email.com
+              </Text>
+            </View>
+            <TouchableOpacity activeOpacity={0.7}>
+              <Text className={`font-semibold ${isDark ? 'text-white' : 'text-black'}`}>
+                Edit
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Account Section */}
+        <View className="mb-6">
+          <SectionHeader title="Account" />
+          <SettingItem
+            icon={<User color={isDark ? '#000' : '#fff'} size={20} />}
+            title="Personal Information"
+            subtitle="Update your details"
+            onPress={() => Alert.alert('Personal Info', 'Edit personal information')}
+          />
+          <SettingItem
+            icon={<CreditCard color={isDark ? '#000' : '#fff'} size={20} />}
+            title="Payment Methods"
+            subtitle="Manage cards and billing"
+            onPress={() => Alert.alert('Payment', 'Manage payment methods')}
+          />
+          <SettingItem
+            icon={<Lock color={isDark ? '#000' : '#fff'} size={20} />}
+            title="Password & Security"
+            subtitle="Change password, 2FA"
+            onPress={() => Alert.alert('Security', 'Update security settings')}
+          />
+        </View>
+
+        {/* Notifications Section */}
+        <View className="mb-6">
+          <SectionHeader title="Notifications" />
+          <SettingItem
+            icon={<Bell color={isDark ? '#000' : '#fff'} size={20} />}
+            title="Push Notifications"
+            subtitle="Booking updates and messages"
+            showChevron={false}
+            rightElement={
+              <Switch
+                value={pushEnabled}
+                onValueChange={setPushEnabled}
+                trackColor={{ false: '#e5e5e5', true: isDark ? '#fff' : '#000' }}
+                thumbColor="#fff"
+              />
+            }
+          />
+          <SettingItem
+            icon={<Mail color={isDark ? '#000' : '#fff'} size={20} />}
+            title="Email Notifications"
+            subtitle="Promotional emails and updates"
+            showChevron={false}
+            rightElement={
+              <Switch
+                value={emailEnabled}
+                onValueChange={setEmailEnabled}
+                trackColor={{ false: '#e5e5e5', true: isDark ? '#fff' : '#000' }}
+                thumbColor="#fff"
+              />
+            }
+          />
+          <SettingItem
+            icon={<Smartphone color={isDark ? '#000' : '#fff'} size={20} />}
+            title="SMS Notifications"
+            subtitle="Important booking alerts"
+            showChevron={false}
+            rightElement={
+              <Switch
+                value={smsEnabled}
+                onValueChange={setSmsEnabled}
+                trackColor={{ false: '#e5e5e5', true: isDark ? '#fff' : '#000' }}
+                thumbColor="#fff"
+              />
+            }
+          />
+        </View>
+
+        {/* Preferences Section */}
+        <View className="mb-6">
+          <SectionHeader title="Preferences" />
+          <SettingItem
+            icon={<Globe color={isDark ? '#000' : '#fff'} size={20} />}
+            title="Language"
+            subtitle="English"
+            onPress={() => Alert.alert('Language', 'Select your language')}
+          />
+        </View>
+
+        {/* Support Section */}
+        <View className="mb-6">
+          <SectionHeader title="Support" />
+          <SettingItem
+            icon={<HelpCircle color={isDark ? '#000' : '#fff'} size={20} />}
+            title="Help Center"
+            subtitle="FAQs and support"
+            onPress={() => router.push('/support')}
+          />
+          <SettingItem
+            icon={<FileText color={isDark ? '#000' : '#fff'} size={20} />}
+            title="Terms & Privacy"
+            subtitle="Legal information"
+            onPress={() => Alert.alert('Legal', 'View terms and privacy policy')}
+          />
+        </View>
+
+        {/* Danger Zone */}
+        <View className="mb-6">
+          <SectionHeader title="Account Actions" />
+          <TouchableOpacity
+            onPress={handleLogout}
+            activeOpacity={0.7}
+            className={`mb-3 flex-row items-center rounded-2xl border p-4 ${
+              isDark ? 'bg-[#1a1a1a] border-red-500/30' : 'bg-white border-red-500/30'
+            }`}>
+            <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-red-500/10">
+              <LogOut color="#ef4444" size={20} />
+            </View>
+            <Text className="flex-1 font-semibold text-red-500">Logout</Text>
+            <ChevronRight color="#ef4444" size={20} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleDeleteAccount}
+            activeOpacity={0.7}
+            className={`mb-3 flex-row items-center rounded-2xl border p-4 ${
+              isDark ? 'bg-[#1a1a1a] border-red-500/30' : 'bg-white border-red-500/30'
+            }`}>
+            <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-red-500/10">
+              <Shield color="#ef4444" size={20} />
+            </View>
+            <View className="flex-1">
+              <Text className="font-semibold text-red-500">Delete Account</Text>
+              <Text className="mt-1 text-sm text-red-500/70">
+                Permanently delete your account
+              </Text>
+            </View>
+            <ChevronRight color="#ef4444" size={20} />
+          </TouchableOpacity>
+        </View>
+
+        {/* App Version */}
+        <View className="items-center py-4">
+          <Text className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+            LUXE App v1.0.0
+          </Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
