@@ -47,7 +47,7 @@ export function ThemeTransitionProvider({ children }: { children: React.ReactNod
         radius.value = withSequence(
             // Expand to cover screen
             withTiming(MAX_RADIUS, {
-                duration: 400,
+                duration: 450,
                 easing: Easing.bezier(0.4, 0, 0.2, 1),
             }),
             // Switch theme at peak
@@ -58,9 +58,9 @@ export function ThemeTransitionProvider({ children }: { children: React.ReactNod
                     runOnJS(callback)();
                 }
             }),
-            // Contract back
+            // Contract back (slightly slower for smoother feel)
             withTiming(0, {
-                duration: 400,
+                duration: 500,
                 easing: Easing.bezier(0.4, 0, 0.2, 1),
             }, (finished) => {
                 if (finished) {

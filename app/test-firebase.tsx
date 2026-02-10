@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { firestore } from './services/firebase';
+import { firestore } from '@/src/services/firebase';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
 export default function TestFirebase() {

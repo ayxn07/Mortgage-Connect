@@ -20,7 +20,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash.png",
-          "imageWidth": 200,
+          "imageWidth": 300,
+          "imageHeight": 300,
+          
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
           "dark": {
@@ -53,9 +55,10 @@
       "bundleIdentifier": "com.ayxn07.MortgageConnect",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
-    "android": {
+"android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,

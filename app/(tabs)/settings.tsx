@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
+import React from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Switch, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   User,
@@ -18,6 +18,8 @@ import {
 import { useRouter } from 'expo-router';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useColorScheme } from 'nativewind';
+import { useAuthStore } from '@/src/store/authStore';
+import { useSettingsStore } from '@/src/store/settingsStore';
 
 type SettingItemProps = {
   icon: React.ReactNode;
@@ -85,9 +87,22 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [emailEnabled, setEmailEnabled] = useState(true);
-  const [smsEnabled, setSmsEnabled] = useState(false);
+
+  // Auth store — real user data
+  const { userDoc, firebaseUser, signOut, loading } = useAuthStore();
+
+  // Settings store — persisted notification preferences
+  const { notifications, setNotification } = useSettingsStore();
+
+  // Derive display values from auth
+  const displayName = userDoc?.displayName ?? firebaseUser?.displayName ?? 'User';
+  const displayEmail = userDoc?.email ?? firebaseUser?.email ?? '';
+  const initials = displayName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -95,8 +110,13 @@ export default function SettingsScreen() {
       {
         text: 'Logout',
         style: 'destructive',
-        onPress: () => {
-          Alert.alert('Success', 'You have been logged out');
+        onPress: async () => {
+          try {
+            await signOut();
+            router.replace('/auth/login');
+          } catch {
+            Alert.alert('Error', 'Failed to log out. Please try again.');
+          }
         },
       },
     ]);
@@ -111,7 +131,26 @@ export default function SettingsScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => Alert.alert('Account Deleted', 'Your account has been deleted'),
+          onPress: async () => {
+            try {
+              // Delete Firestore doc first, then Firebase Auth user
+              if (firebaseUser) {
+                const { firestore } = require('@/src/services/firebase');
+                await firestore().collection('users').doc(firebaseUser.uid).delete();
+                await firebaseUser.delete();
+              }
+              router.replace('/auth/login');
+            } catch (err: any) {
+              if (err?.code === 'auth/requires-recent-login') {
+                Alert.alert(
+                  'Re-authentication Required',
+                  'Please log out and log back in before deleting your account.'
+                );
+              } else {
+                Alert.alert('Error', 'Failed to delete account. Please try again.');
+              }
+            }
+          },
         },
       ]
     );
@@ -151,15 +190,15 @@ export default function SettingsScreen() {
               isDark ? 'bg-white' : 'bg-black'
             }`}>
               <Text className={`text-xl font-bold ${isDark ? 'text-black' : 'text-white'}`}>
-                JD
+                {initials}
               </Text>
             </View>
             <View className="flex-1">
               <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                John Doe
+                {displayName}
               </Text>
               <Text className={isDark ? 'text-gray-400' : 'text-gray-500'}>
-                john.doe@email.com
+                {displayEmail}
               </Text>
             </View>
             <TouchableOpacity activeOpacity={0.7}>
@@ -203,8 +242,8 @@ export default function SettingsScreen() {
             showChevron={false}
             rightElement={
               <Switch
-                value={pushEnabled}
-                onValueChange={setPushEnabled}
+                value={notifications.push}
+                onValueChange={(val) => setNotification('push', val)}
                 trackColor={{ false: '#e5e5e5', true: isDark ? '#fff' : '#000' }}
                 thumbColor="#fff"
               />
@@ -217,8 +256,8 @@ export default function SettingsScreen() {
             showChevron={false}
             rightElement={
               <Switch
-                value={emailEnabled}
-                onValueChange={setEmailEnabled}
+                value={notifications.email}
+                onValueChange={(val) => setNotification('email', val)}
                 trackColor={{ false: '#e5e5e5', true: isDark ? '#fff' : '#000' }}
                 thumbColor="#fff"
               />
@@ -231,8 +270,8 @@ export default function SettingsScreen() {
             showChevron={false}
             rightElement={
               <Switch
-                value={smsEnabled}
-                onValueChange={setSmsEnabled}
+                value={notifications.sms}
+                onValueChange={(val) => setNotification('sms', val)}
                 trackColor={{ false: '#e5e5e5', true: isDark ? '#fff' : '#000' }}
                 thumbColor="#fff"
               />
@@ -265,6 +304,12 @@ export default function SettingsScreen() {
             title="Terms & Privacy"
             subtitle="Legal information"
             onPress={() => Alert.alert('Legal', 'View terms and privacy policy')}
+          />
+          <SettingItem
+            icon={<Shield color={isDark ? '#000' : '#fff'} size={20} />}
+            title="Test Firebase Connection"
+            subtitle="Check if Firebase is working"
+            onPress={() => router.push('/test-firebase')}
           />
         </View>
 
@@ -306,7 +351,7 @@ export default function SettingsScreen() {
         {/* App Version */}
         <View className="items-center py-4">
           <Text className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-            LUXE App v1.0.0
+            MortgageConnect v1.0.0
           </Text>
         </View>
       </ScrollView>

@@ -1,55 +1,19 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Linking, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, TextInput, Linking, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Phone, Mail, MessageCircle, MapPin, ChevronDown, Send, ArrowLeft } from '@/components/Icons';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   withTiming,
   interpolate,
 } from 'react-native-reanimated';
 import { useColorScheme } from 'nativewind';
 import { useRouter } from 'expo-router';
-
-type FAQ = {
-  id: string;
-  question: string;
-  answer: string;
-};
-
-const faqs: FAQ[] = [
-  {
-    id: '1',
-    question: 'How do I book an agent?',
-    answer:
-      'Browse our agents, select your preferred professional, and click "Book Now" on their profile. Choose your service, date, and time to complete the booking.',
-  },
-  {
-    id: '2',
-    question: 'What is your cancellation policy?',
-    answer:
-      'You can cancel up to 24 hours before your appointment for a full refund. Cancellations within 24 hours are subject to a 50% fee.',
-  },
-  {
-    id: '3',
-    question: 'How do I contact my agent?',
-    answer:
-      'Once booked, you can message your agent directly through the app. Their contact information will also be available in your booking confirmation.',
-  },
-  {
-    id: '4',
-    question: 'Are agents verified?',
-    answer:
-      'Yes, all agents undergo a thorough verification process including background checks, credential verification, and skills assessment.',
-  },
-  {
-    id: '5',
-    question: 'How do payments work?',
-    answer:
-      'Payments are processed securely through the app. Your card is charged after the service is completed. We support all major credit cards and digital wallets.',
-  },
-];
+import { useAuthStore } from '@/src/store/authStore';
+import { useSupportStore } from '@/src/store/supportStore';
+import type { FAQ } from '@/src/types';
 
 function FAQItem({ faq, isDark }: { faq: FAQ; isDark: boolean }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -58,16 +22,18 @@ function FAQItem({ faq, isDark }: { faq: FAQ; isDark: boolean }) {
 
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
-    heightValue.value = withSpring(!isExpanded ? 1 : 0, {
-      damping: 20,
-      stiffness: 150,
+    heightValue.value = withTiming(!isExpanded ? 1 : 0, {
+      duration: 300,
     });
-    rotateValue.value = withTiming(!isExpanded ? 1 : 0, { duration: 200 });
+    rotateValue.value = withTiming(!isExpanded ? 1 : 0, { 
+      duration: 300,
+    });
   };
 
   const animatedStyle = useAnimatedStyle(() => ({
-    height: interpolate(heightValue.value, [0, 1], [0, 150]),
+    height: heightValue.value * 100,
     opacity: heightValue.value,
+    overflow: 'hidden',
   }));
 
   const rotateStyle = useAnimatedStyle(() => ({
@@ -105,32 +71,63 @@ export default function SupportScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
-  
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+
+  // Auth store — pre-fill name & email
+  const { userDoc, firebaseUser } = useAuthStore();
+
+  // Support store — FAQs + form submission
+  const { faqs, submitting, submitQuery, lastSubmittedId, clearLastSubmitted } = useSupportStore();
+
+  const [name, setName] = useState(userDoc?.displayName ?? firebaseUser?.displayName ?? '');
+  const [email, setEmail] = useState(userDoc?.email ?? firebaseUser?.email ?? '');
   const [message, setMessage] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+
+  // Pre-fill fields when userDoc loads
+  useEffect(() => {
+    if (userDoc) {
+      if (!name) setName(userDoc.displayName ?? '');
+      if (!email) setEmail(userDoc.email ?? '');
+    }
+  }, [userDoc]);
 
   const handleCall = () => {
     Linking.openURL('tel:+1234567890');
   };
 
   const handleEmail = () => {
-    Linking.openURL('mailto:support@luxe.com');
+    Linking.openURL('mailto:support@mortgageconnect.ae');
   };
 
   const handleChat = () => {
     Alert.alert('Live Chat', 'Opening live chat...');
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name || !email || !message) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-    Alert.alert('Success', "Your feedback has been submitted. We'll get back to you soon!");
-    setName('');
-    setEmail('');
-    setMessage('');
+
+    const uid = firebaseUser?.uid;
+    if (!uid) {
+      Alert.alert('Error', 'You must be logged in to submit feedback.');
+      return;
+    }
+
+    try {
+      await submitQuery(uid, {
+        category: 'feedback',
+        name,
+        email,
+        subject: 'App Feedback',
+        message,
+      });
+      setSubmitted(true);
+      setMessage('');
+    } catch {
+      Alert.alert('Error', 'Failed to submit feedback. Please try again.');
+    }
   };
 
   return (
@@ -156,9 +153,14 @@ export default function SupportScreen() {
         </View>
       </View>
 
-      <ScrollView 
+      <KeyboardAwareScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        extraScrollHeight={40}
+        enableOnAndroid={true}
+        enableAutomaticScroll={true}>
         
         {/* Quick Contact Buttons */}
         <View className="mb-6">
@@ -225,21 +227,38 @@ export default function SupportScreen() {
           </View>
         </View>
 
-        {/* FAQ Section */}
-        <View className="mb-6">
-          <Text className={`mb-4 text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-            Frequently Asked Questions
-          </Text>
-          {faqs.map((faq) => (
-            <FAQItem key={faq.id} faq={faq} isDark={isDark} />
-          ))}
-        </View>
-
         {/* Feedback Form */}
-        <View>
+        <View className="mb-6">
           <Text className={`mb-4 text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>
             Send Feedback
           </Text>
+
+          {submitted ? (
+            <View className={`items-center gap-4 rounded-2xl border p-8 ${
+              isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
+            }`}>
+              <View className="w-16 h-16 rounded-full bg-green-500/10 items-center justify-center">
+                <Text className="text-3xl">✓</Text>
+              </View>
+              <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+                Feedback Submitted
+              </Text>
+              <Text className={`text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                Thank you! We'll get back to you soon.
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setSubmitted(false);
+                  clearLastSubmitted();
+                }}
+                activeOpacity={0.8}
+                className={`mt-2 rounded-xl px-6 py-3 ${isDark ? 'bg-white' : 'bg-black'}`}>
+                <Text className={`font-semibold ${isDark ? 'text-black' : 'text-white'}`}>
+                  Send Another
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
           <View className={`gap-4 rounded-2xl border p-5 ${
             isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
           }`}>
@@ -301,18 +320,34 @@ export default function SupportScreen() {
 
             <TouchableOpacity
               onPress={handleSubmit}
+              disabled={submitting}
               activeOpacity={0.8}
               className={`flex-row items-center justify-center gap-2 rounded-xl p-4 ${
-                isDark ? 'bg-white' : 'bg-black'
-              }`}>
-              <Send color={isDark ? '#000' : '#fff'} size={20} />
+                submitting ? 'opacity-60' : ''
+              } ${isDark ? 'bg-white' : 'bg-black'}`}>
+              {submitting ? (
+                <ActivityIndicator color={isDark ? '#000' : '#fff'} size="small" />
+              ) : (
+                <Send color={isDark ? '#000' : '#fff'} size={20} />
+              )}
               <Text className={`text-base font-semibold ${isDark ? 'text-black' : 'text-white'}`}>
-                Submit Feedback
+                {submitting ? 'Submitting...' : 'Submit Feedback'}
               </Text>
             </TouchableOpacity>
           </View>
+          )}
         </View>
-      </ScrollView>
+
+        {/* FAQ Section */}
+        <View className="mb-6">
+          <Text className={`mb-4 text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+            Frequently Asked Questions
+          </Text>
+          {faqs.map((faq: FAQ) => (
+            <FAQItem key={faq.id} faq={faq} isDark={isDark} />
+          ))}
+        </View>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
