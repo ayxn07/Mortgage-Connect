@@ -55,7 +55,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.ayxn07.MortgageConnect"
+      "package": "com.ayxn07.MortgageConnect",
+      "ndkVersion": "26.1.10909125"
     }
   }
 }
