@@ -29,7 +29,15 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "ndkVersion": "29.0.14206865"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -55,8 +63,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.ayxn07.MortgageConnect",
-      "ndkVersion": "29.0.14206865"
+      "package": "com.ayxn07.MortgageConnect"
     }
   }
 }
