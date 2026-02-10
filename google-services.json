@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "571691878268",
+    "project_id": "mortgage-connect-5b774",
+    "storage_bucket": "mortgage-connect-5b774.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:571691878268:android:6dbffcbf546bedd89946f9",
+        "android_client_info": {
+          "package_name": "com.ayxn07.MortgageConnect"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "571691878268-d6sms22kdbvuuhe5b5f39r1jp8tvegoa.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBmY9vmcKglkNVRa0-j4M3POOSgr8R6tPA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "571691878268-d6sms22kdbvuuhe5b5f39r1jp8tvegoa.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

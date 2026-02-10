@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StatusBar } from 'react-native';
+import { View, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
@@ -67,8 +67,6 @@ export default function SplashScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-black">
-      <StatusBar barStyle="light-content" backgroundColor="#000000" />
-
       <View className="flex-1 items-center justify-center px-6">
         {/* Logo Container */}
         <View className="relative items-center">
