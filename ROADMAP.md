@@ -697,7 +697,7 @@ interface UserPresence {
 
 ### B.5 Media & File Sharing
 
-- [ ] **Image Sharing:**
+- [x] **Image Sharing:**
   - Use `expo-image-picker` to select from gallery or camera
   - Compress images before upload (max 1920px width)
   - Upload to Firebase Storage: `chats/{chatId}/images/{messageId}.jpg`
@@ -707,19 +707,13 @@ interface UserPresence {
   - Tap to open full-screen lightbox
   - Pinch to zoom in lightbox
   - Swipe to navigate between images
-- [ ] **Document Sharing:**
+- [x] **Document Sharing:**
   - Use `expo-document-picker` to select files
   - Support PDF, DOC, DOCX, XLS, XLSX (max 10MB)
   - Upload to Firebase Storage: `chats/{chatId}/documents/{messageId}.pdf`
   - Show file name, size, and icon in message
   - Tap to download and open with system viewer
   - Show download progress
-- [ ] **Voice Messages (Optional):**
-  - Use `expo-av` to record audio
-  - Max duration: 2 minutes
-  - Upload to Firebase Storage: `chats/{chatId}/audio/{messageId}.m4a`
-  - Show waveform visualization
-  - Playback controls in message bubble
 
 ### B.6 Chat Notifications
 
@@ -847,8 +841,8 @@ interface UserPresence {
 - [x] Typing indicators work smoothly
 - [x] Online status updates in real-time
 - [x] Read receipts show correctly
-- [ ] Image sharing works with compression
-- [ ] Document sharing works with preview
+- [x] Image sharing works with compression
+- [x] Document sharing works with preview
 - [ ] Push notifications arrive instantly
 - [ ] Message search works accurately
 - [ ] Chat actions (archive, mute, delete) work

@@ -19,21 +19,13 @@ import Animated, {
   FadeInDown,
   FadeInRight,
   FadeInUp,
-  FadeOutLeft,
-  SlideInRight,
-  SlideOutLeft,
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  interpolate,
-  Extrapolation,
+
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { useAuthStore } from '@/src/store/authStore';
 import { useApplicationStore } from '@/src/store/applicationStore';
-import { calculateEMI, calculateLTV, calculateDBR, getMinDownPaymentPercent } from '@/src/utils/helpers';
+import { calculateEMI, getMinDownPaymentPercent } from '@/src/utils/helpers';
 import type {
   ApplicantIdentity,
   ContactResidency,

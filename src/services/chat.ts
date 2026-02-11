@@ -9,6 +9,7 @@
  * - Message pagination
  */
 import firestore from '@react-native-firebase/firestore';
+import storage from '@react-native-firebase/storage';
 import type { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import type {
   Chat,
@@ -18,6 +19,7 @@ import type {
   CreateChatInput,
   ChatType,
   MessageType,
+  MessageContent,
 } from '../types/chat';
 import type { UserRole } from '../types/user';
 
@@ -522,4 +524,179 @@ export async function deleteChat(chatId: string): Promise<void> {
 
   // Delete the chat document itself
   await chatsRef.doc(chatId).delete();
+}
+
+// ─── Media / File Upload ──────────────────────────────────────────────────────
+
+/**
+ * Upload a file to Firebase Storage and return the download URL.
+ * Files are stored at: chat_media/{chatId}/{timestamp}_{fileName}
+ */
+export async function uploadChatMedia(
+  chatId: string,
+  fileUri: string,
+  fileName: string,
+  mimeType?: string
+): Promise<string> {
+  const timestamp = Date.now();
+  const sanitizedName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const storagePath = `chat_media/${chatId}/${timestamp}_${sanitizedName}`;
+
+  const ref = storage().ref(storagePath);
+
+  // Upload task
+  await ref.putFile(fileUri, mimeType ? { contentType: mimeType } : undefined);
+
+  // Get download URL
+  const downloadUrl = await ref.getDownloadURL();
+  return downloadUrl;
+}
+
+/**
+ * Send an image message in a chat.
+ */
+export async function sendImageMessage(
+  chatId: string,
+  senderId: string,
+  senderName: string,
+  senderPhoto: string | null,
+  imageUri: string,
+  fileName: string,
+  replyTo?: Message['replyTo']
+): Promise<Message> {
+  // Upload image to Firebase Storage
+  const mediaUrl = await uploadChatMedia(chatId, imageUri, fileName, 'image/jpeg');
+
+  const messagesRef = chatsRef.doc(chatId).collection('messages');
+  const messageId = messagesRef.doc().id;
+  const now = firestore.FieldValue.serverTimestamp();
+
+  const messageData = {
+    messageId,
+    senderId,
+    senderName,
+    senderPhoto,
+    type: 'image' as MessageType,
+    content: {
+      mediaUrl,
+      fileName,
+      mimeType: 'image/jpeg',
+    } as MessageContent,
+    timestamp: now,
+    readBy: {
+      [senderId]: now,
+    },
+    edited: false,
+    deleted: false,
+    ...(replyTo ? { replyTo } : {}),
+  };
+
+  // Batch write: message + update chat's lastMessage + increment unread
+  const batch = firestore().batch();
+  batch.set(messagesRef.doc(messageId), messageData);
+
+  const chatDoc = await chatsRef.doc(chatId).get();
+  const chat = chatDoc.data() as Chat;
+
+  const unreadUpdates: Record<string, any> = {};
+  for (const pid of chat.participantIds) {
+    if (pid !== senderId) {
+      unreadUpdates[`unreadCount.${pid}`] = firestore.FieldValue.increment(1);
+    }
+  }
+
+  batch.update(chatsRef.doc(chatId), {
+    lastMessage: {
+      text: 'Sent a photo',
+      senderId,
+      timestamp: now,
+      type: 'image' as MessageType,
+    },
+    updatedAt: now,
+    ...unreadUpdates,
+  });
+
+  await batch.commit();
+
+  return {
+    ...messageData,
+    timestamp: firestore.Timestamp.now(),
+    readBy: { [senderId]: firestore.Timestamp.now() },
+  } as Message;
+}
+
+/**
+ * Send a document/file message in a chat.
+ */
+export async function sendDocumentMessage(
+  chatId: string,
+  senderId: string,
+  senderName: string,
+  senderPhoto: string | null,
+  fileUri: string,
+  fileName: string,
+  fileSize: number,
+  mimeType: string,
+  replyTo?: Message['replyTo']
+): Promise<Message> {
+  // Upload file to Firebase Storage
+  const mediaUrl = await uploadChatMedia(chatId, fileUri, fileName, mimeType);
+
+  const messagesRef = chatsRef.doc(chatId).collection('messages');
+  const messageId = messagesRef.doc().id;
+  const now = firestore.FieldValue.serverTimestamp();
+
+  const messageData = {
+    messageId,
+    senderId,
+    senderName,
+    senderPhoto,
+    type: 'document' as MessageType,
+    content: {
+      mediaUrl,
+      fileName,
+      fileSize,
+      mimeType,
+    } as MessageContent,
+    timestamp: now,
+    readBy: {
+      [senderId]: now,
+    },
+    edited: false,
+    deleted: false,
+    ...(replyTo ? { replyTo } : {}),
+  };
+
+  // Batch write
+  const batch = firestore().batch();
+  batch.set(messagesRef.doc(messageId), messageData);
+
+  const chatDoc = await chatsRef.doc(chatId).get();
+  const chat = chatDoc.data() as Chat;
+
+  const unreadUpdates: Record<string, any> = {};
+  for (const pid of chat.participantIds) {
+    if (pid !== senderId) {
+      unreadUpdates[`unreadCount.${pid}`] = firestore.FieldValue.increment(1);
+    }
+  }
+
+  batch.update(chatsRef.doc(chatId), {
+    lastMessage: {
+      text: `Sent a file: ${fileName}`,
+      senderId,
+      timestamp: now,
+      type: 'document' as MessageType,
+    },
+    updatedAt: now,
+    ...unreadUpdates,
+  });
+
+  await batch.commit();
+
+  return {
+    ...messageData,
+    timestamp: firestore.Timestamp.now(),
+    readBy: { [senderId]: firestore.Timestamp.now() },
+  } as Message;
 }

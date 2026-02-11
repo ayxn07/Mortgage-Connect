@@ -20,6 +20,7 @@ export interface SupportQuery {
   email: string;
   attachments?: string[]; // Firebase Storage URLs
   status: SupportStatus;
+  adminResponse?: string; // Admin's response to the ticket
   createdAt: FirebaseFirestoreTypes.Timestamp;
   updatedAt: FirebaseFirestoreTypes.Timestamp;
 }

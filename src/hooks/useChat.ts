@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useCallback, useRef, useState } from 'react';
 import { useChatStore } from '../store/chatStore';
 import { useAuthStore } from '../store/authStore';
-import type { Chat, ChatListItem, ChatParticipant } from '../types/chat';
+import type { Chat, ChatListItem, ChatParticipant, Message } from '../types/chat';
+import type { IMessage } from 'react-native-gifted-chat';
 
 /**
  * Hook to manage the chat list subscription and provide enriched chat data.
@@ -76,8 +77,71 @@ export function useChatList() {
 }
 
 /**
+ * Convert a Firestore Message to GiftedChat IMessage format.
+ */
+function toGiftedMessage(msg: Message, userId: string): IMessage {
+  const isMe = msg.senderId === userId;
+  const timestamp = msg.timestamp?.toDate ? msg.timestamp.toDate() : new Date();
+
+  const base: IMessage = {
+    _id: msg.messageId,
+    text: msg.deleted ? 'This message was deleted' : (msg.content?.text || ''),
+    createdAt: timestamp,
+    user: {
+      _id: msg.senderId,
+      name: msg.senderName,
+      avatar: msg.senderPhoto || undefined,
+    },
+  };
+
+  // Image message
+  if (msg.type === 'image' && msg.content?.mediaUrl && !msg.deleted) {
+    base.image = msg.content.mediaUrl;
+    base.text = '';
+  }
+
+  // Document message - store doc info so we can render a custom bubble
+  if (msg.type === 'document' && msg.content?.mediaUrl && !msg.deleted) {
+    base.text = '';
+    // Attach file metadata in extra fields (GiftedChat passes extra props through)
+    (base as any).document = {
+      url: msg.content.mediaUrl,
+      fileName: msg.content.fileName || 'File',
+      fileSize: msg.content.fileSize || 0,
+      mimeType: msg.content.mimeType || 'application/octet-stream',
+    };
+  }
+
+  // Reply info
+  if (msg.replyTo) {
+    (base as any).replyTo = msg.replyTo;
+  }
+
+  // Edited flag
+  if (msg.edited) {
+    (base as any).edited = true;
+  }
+
+  // Deleted flag
+  if (msg.deleted) {
+    (base as any).deleted = true;
+  }
+
+  // Read receipt info
+  if (isMe) {
+    const readByOther = Object.keys(msg.readBy || {}).length > 1;
+    (base as any).received = true;
+    (base as any).sent = true;
+    (base as any).readByOther = readByOther;
+  }
+
+  return base;
+}
+
+/**
  * Hook to manage an active chat conversation.
  * Handles message subscription, typing indicators, read receipts.
+ * Returns messages in GiftedChat-compatible format.
  */
 export function useConversation(chatId: string | undefined) {
   const { firebaseUser, userDoc } = useAuthStore();
@@ -91,6 +155,8 @@ export function useConversation(chatId: string | undefined) {
     openChat,
     closeChat,
     sendMessage,
+    sendImageMessage,
+    sendDocumentMessage,
     loadMoreMessages,
     setTyping,
     markRead,
@@ -148,7 +214,14 @@ export function useConversation(chatId: string | undefined) {
     return otherPresence.isTypingIn === chatId;
   }, [otherPresence, chatId]);
 
-  // Send message handler
+  // Convert Firestore messages to GiftedChat format (newest first for GiftedChat)
+  const giftedMessages: IMessage[] = useMemo(() => {
+    if (!userId) return [];
+    // messages from store are in desc order (newest first) which GiftedChat expects
+    return messages.map((msg) => toGiftedMessage(msg, userId));
+  }, [messages, userId]);
+
+  // Send text message handler
   const handleSend = useCallback(
     async (text: string, replyTo?: typeof messages[0]['replyTo']) => {
       if (!userId || !userDoc) return;
@@ -161,6 +234,38 @@ export function useConversation(chatId: string | undefined) {
       );
     },
     [userId, userDoc, sendMessage]
+  );
+
+  // Send image message handler
+  const handleSendImage = useCallback(
+    async (imageUri: string, fileName: string) => {
+      if (!userId || !userDoc) return;
+      await sendImageMessage(
+        userId,
+        userDoc.displayName,
+        userDoc.photoURL || null,
+        imageUri,
+        fileName
+      );
+    },
+    [userId, userDoc, sendImageMessage]
+  );
+
+  // Send document message handler
+  const handleSendDocument = useCallback(
+    async (fileUri: string, fileName: string, fileSize: number, mimeType: string) => {
+      if (!userId || !userDoc) return;
+      await sendDocumentMessage(
+        userId,
+        userDoc.displayName,
+        userDoc.photoURL || null,
+        fileUri,
+        fileName,
+        fileSize,
+        mimeType
+      );
+    },
+    [userId, userDoc, sendDocumentMessage]
   );
 
   // Typing handler with debounce
@@ -192,13 +297,8 @@ export function useConversation(chatId: string | undefined) {
     };
   }, [userId]);
 
-  // Messages in chronological order (newest last) for FlatList
-  const sortedMessages = useMemo(() => {
-    return [...messages].reverse();
-  }, [messages]);
-
   return {
-    messages: sortedMessages,
+    messages: giftedMessages,
     rawMessages: messages,
     activeChat,
     otherParticipant,
@@ -210,6 +310,8 @@ export function useConversation(chatId: string | undefined) {
     userId,
     userDoc,
     sendMessage: handleSend,
+    sendImage: handleSendImage,
+    sendDocument: handleSendDocument,
     loadMore: loadMoreMessages,
     onTyping: handleTyping,
     deleteMessage: deleteMsg,

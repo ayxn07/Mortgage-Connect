@@ -24,13 +24,33 @@ export async function createSupportQuery(
  * Fetch all support queries for a user.
  */
 export async function fetchUserSupportQueries(uid: string): Promise<SupportQuery[]> {
-  const snapshot = await firestore()
-    .collection('supportQueries')
-    .where('uid', '==', uid)
-    .orderBy('createdAt', 'desc')
-    .get();
+  try {
+    console.log('Fetching support queries from Firestore for uid:', uid);
+    const snapshot = await firestore()
+      .collection('supportQueries')
+      .where('uid', '==', uid)
+      .get();
 
-  return snapshot.docs.map((doc) => ({ ...doc.data(), queryId: doc.id }) as SupportQuery);
+    console.log('Firestore query completed. Document count:', snapshot.size);
+    
+    const queries = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      console.log('Document data:', { id: doc.id, ...data });
+      return { ...data, queryId: doc.id } as SupportQuery;
+    });
+    
+    // Sort by createdAt in memory to avoid needing a composite index
+    queries.sort((a, b) => {
+      const aTime = a.createdAt?.toMillis?.() || 0;
+      const bTime = b.createdAt?.toMillis?.() || 0;
+      return bTime - aTime; // desc order
+    });
+    
+    return queries;
+  } catch (error) {
+    console.error('Error in fetchUserSupportQueries:', error);
+    throw error;
+  }
 }
 
 /**

@@ -5,11 +5,16 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DynamicStatusBar } from '@/components/DynamicStatusBar';
 import { ThemeTransitionProvider } from '@/components/ThemeTransition';
-import { KeyboardProvider } from 'react-native-keyboard-controller';
-import { LogBox } from 'react-native';
+import { LogBox, I18nManager } from 'react-native';
 import { useAuthStore } from '@/src/store/authStore';
 import { seedTestAgents } from '@/src/services/seedAgents';
 import { configureGoogleSignIn } from '@/src/services/googleSignInConfig';
+
+// Force LTR layout
+if (I18nManager.isRTL) {
+  I18nManager.allowRTL(false);
+  I18nManager.forceRTL(false);
+}
 
 // Suppress SafeAreaView deprecation warning from third-party libraries
 LogBox.ignoreLogs([
@@ -43,11 +48,10 @@ export default function RootLayout() {
   }, [initialized]);
 
   return (
-    <KeyboardProvider>
-      <ThemeProvider>
-        <SafeAreaProvider>
-          <ThemeTransitionProvider>
-            <DynamicStatusBar />
+    <ThemeProvider>
+      <SafeAreaProvider>
+        <ThemeTransitionProvider>
+          <DynamicStatusBar />
             <Stack
             screenOptions={{
               headerShown: false,
@@ -153,6 +157,5 @@ export default function RootLayout() {
         </ThemeTransitionProvider>
       </SafeAreaProvider>
     </ThemeProvider>
-    </KeyboardProvider>
   );
 }

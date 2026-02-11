@@ -88,6 +88,10 @@ export const Send = ({ size = 24, color, className }: IconProps) => (
   <Feather name="send" size={size} color={color || getColor(className)} />
 );
 
+export const RefreshCw = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="refresh-cw" size={size} color={color || getColor(className)} />
+);
+
 export const ArrowLeft = ({ size = 24, color, className }: IconProps) => (
   <Feather name="arrow-left" size={size} color={color || getColor(className)} />
 );

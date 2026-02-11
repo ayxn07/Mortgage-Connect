@@ -86,9 +86,12 @@ export const useSupportStore = create<SupportState>((set) => ({
   fetchQueries: async (uid) => {
     set({ loading: true, error: null });
     try {
+      console.log('Fetching support queries for uid:', uid);
       const queries = await fetchUserSupportQueries(uid);
+      console.log('Fetched queries:', queries);
       set({ queries, loading: false });
     } catch (err: any) {
+      console.error('Error fetching support queries:', err);
       set({ error: err.message, loading: false });
     }
   },

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Linking, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Linking, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { Phone, Mail, MessageCircle, MapPin, ChevronDown, Send, ArrowLeft } from '@/components/Icons';
+import { Phone, Mail, MessageCircle, MapPin, ChevronDown, Send, ArrowLeft, RefreshCw } from '@/components/Icons';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -76,12 +76,14 @@ export default function SupportScreen() {
   const { userDoc, firebaseUser } = useAuthStore();
 
   // Support store — FAQs + form submission
-  const { faqs, submitting, submitQuery, lastSubmittedId, clearLastSubmitted } = useSupportStore();
+  const { faqs, submitting, submitQuery, lastSubmittedId, clearLastSubmitted, queries, fetchQueries, loading, error } = useSupportStore();
 
   const [name, setName] = useState(userDoc?.displayName ?? firebaseUser?.displayName ?? '');
   const [email, setEmail] = useState(userDoc?.email ?? firebaseUser?.email ?? '');
   const [message, setMessage] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [expandedTicket, setExpandedTicket] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Pre-fill fields when userDoc loads
   useEffect(() => {
@@ -90,6 +92,38 @@ export default function SupportScreen() {
       if (!email) setEmail(userDoc.email ?? '');
     }
   }, [userDoc]);
+
+  // Fetch user's support queries
+  useEffect(() => {
+    if (firebaseUser?.uid) {
+      console.log('Fetching queries for user:', firebaseUser.uid);
+      fetchQueries(firebaseUser.uid);
+    } else {
+      console.log('No firebase user found');
+    }
+  }, [firebaseUser?.uid, fetchQueries]);
+
+  // Debug: Log queries when they change
+  useEffect(() => {
+    console.log('Support queries loaded:', queries);
+    console.log('Loading state:', loading);
+    console.log('Error state:', error);
+  }, [queries, loading, error]);
+
+  const handleRefresh = async () => {
+    if (!firebaseUser?.uid) {
+      Alert.alert('Error', 'You must be logged in to refresh tickets');
+      return;
+    }
+    setRefreshing(true);
+    try {
+      await fetchQueries(firebaseUser.uid);
+    } catch (err) {
+      console.error('Refresh error:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleCall = () => {
     Linking.openURL('tel:+1234567890');
@@ -125,7 +159,12 @@ export default function SupportScreen() {
       });
       setSubmitted(true);
       setMessage('');
-    } catch {
+      // Refresh tickets after submission
+      setTimeout(() => {
+        fetchQueries(uid);
+      }, 1000);
+    } catch (err) {
+      console.error('Submit error:', err);
       Alert.alert('Error', 'Failed to submit feedback. Please try again.');
     }
   };
@@ -346,6 +385,154 @@ export default function SupportScreen() {
           {faqs.map((faq: FAQ) => (
             <FAQItem key={faq.id} faq={faq} isDark={isDark} />
           ))}
+        </View>
+
+        {/* My Tickets Section */}
+        <View className="mb-6">
+          <View className="flex-row items-center justify-between mb-4">
+            <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+              My Tickets
+            </Text>
+            <TouchableOpacity
+              onPress={handleRefresh}
+              disabled={refreshing}
+              activeOpacity={0.7}
+              className={`flex-row items-center gap-2 px-3 py-2 rounded-xl ${
+                isDark ? 'bg-[#1a1a1a]' : 'bg-white'
+              } border ${isDark ? 'border-[#2a2a2a]' : 'border-gray-200'}`}>
+              {refreshing ? (
+                <ActivityIndicator color={isDark ? '#fff' : '#000'} size="small" />
+              ) : (
+                <RefreshCw color={isDark ? '#fff' : '#000'} size={16} />
+              )}
+              <Text className={`text-xs font-medium ${isDark ? 'text-white' : 'text-black'}`}>
+                Refresh
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
+          {error && (
+            <View className={`mb-3 p-4 rounded-2xl border ${
+              isDark ? 'bg-red-500/10 border-red-500/20' : 'bg-red-50 border-red-100'
+            }`}>
+              <Text className={`text-sm ${isDark ? 'text-red-400' : 'text-red-700'}`}>
+                Error loading tickets: {error}
+              </Text>
+              <TouchableOpacity onPress={handleRefresh} className="mt-2">
+                <Text className={`text-xs font-semibold ${isDark ? 'text-red-300' : 'text-red-600'}`}>
+                  Tap to retry
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          
+          {loading ? (
+            <View className={`p-8 rounded-2xl border ${
+              isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
+            }`}>
+              <ActivityIndicator color={isDark ? '#fff' : '#000'} size="large" />
+              <Text className={`text-center mt-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                Loading your tickets...
+              </Text>
+            </View>
+          ) : queries.length === 0 ? (
+            <View className={`p-8 rounded-2xl border ${
+              isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
+            }`}>
+              <Text className={`text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                No support tickets yet. Submit feedback above to get started!
+              </Text>
+            </View>
+          ) : (
+            queries.map((ticket) => {
+              const isExpanded = expandedTicket === ticket.queryId;
+              const statusColors = {
+                open: isDark ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700',
+                in_progress: isDark ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700',
+                resolved: isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700',
+                closed: isDark ? 'bg-gray-500/20 text-gray-400' : 'bg-gray-100 text-gray-700',
+              };
+              const statusColor = statusColors[ticket.status as keyof typeof statusColors] || statusColors.open;
+
+              return (
+                <View
+                  key={ticket.queryId}
+                  className={`mb-3 overflow-hidden rounded-2xl border ${
+                    isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
+                  }`}>
+                  <TouchableOpacity
+                    onPress={() => setExpandedTicket(isExpanded ? null : ticket.queryId)}
+                    activeOpacity={0.7}
+                    className="p-4">
+                    <View className="flex-row items-start justify-between mb-2">
+                      <Text className={`flex-1 pr-4 font-semibold ${isDark ? 'text-white' : 'text-black'}`}>
+                        {ticket.subject}
+                      </Text>
+                      <View className={`px-2 py-1 rounded-full ${statusColor}`}>
+                        <Text className="text-xs font-medium capitalize">
+                          {ticket.status.replace('_', ' ')}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                      {ticket.createdAt?.toDate?.() 
+                        ? new Date(ticket.createdAt.toDate()).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : 'Recently'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {isExpanded && (
+                    <View className="px-4 pb-4 border-t border-gray-200 dark:border-gray-800">
+                      <View className="pt-4">
+                        <Text className={`text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          Your Message
+                        </Text>
+                        <Text className={`text-sm leading-6 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {ticket.message}
+                        </Text>
+                      </View>
+
+                      {ticket.adminResponse && (
+                        <View className={`mt-4 p-3 rounded-xl ${
+                          isDark ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-100'
+                        }`}>
+                          <View className="flex-row items-center mb-2">
+                            <View className={`w-6 h-6 rounded-full items-center justify-center mr-2 ${
+                              isDark ? 'bg-blue-500/20' : 'bg-blue-200'
+                            }`}>
+                              <Text className="text-xs">👤</Text>
+                            </View>
+                            <Text className={`text-xs font-semibold ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>
+                              Admin Response
+                            </Text>
+                          </View>
+                          <Text className={`text-sm leading-6 ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>
+                            {ticket.adminResponse}
+                          </Text>
+                        </View>
+                      )}
+
+                      {!ticket.adminResponse && ticket.status !== 'closed' && (
+                        <View className={`mt-4 p-3 rounded-xl ${
+                          isDark ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-amber-50 border border-amber-100'
+                        }`}>
+                          <Text className={`text-xs ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                            ⏳ Waiting for admin response...
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </View>
+              );
+            })
+          )}
         </View>
       </KeyboardAwareScrollView>
     </SafeAreaView>

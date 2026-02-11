@@ -4,6 +4,8 @@ import type { UserRole } from '../types/user';
 import {
   createChat,
   sendMessage as sendMessageService,
+  sendImageMessage as sendImageService,
+  sendDocumentMessage as sendDocumentService,
   subscribeToChats,
   subscribeToMessages,
   subscribeToPresence,
@@ -52,6 +54,26 @@ interface ChatState {
     senderId: string,
     senderName: string,
     senderPhoto: string | null,
+    replyTo?: Message['replyTo']
+  ) => Promise<void>;
+  /** Send an image message in the active chat */
+  sendImageMessage: (
+    senderId: string,
+    senderName: string,
+    senderPhoto: string | null,
+    imageUri: string,
+    fileName: string,
+    replyTo?: Message['replyTo']
+  ) => Promise<void>;
+  /** Send a document/file message in the active chat */
+  sendDocumentMessage: (
+    senderId: string,
+    senderName: string,
+    senderPhoto: string | null,
+    fileUri: string,
+    fileName: string,
+    fileSize: number,
+    mimeType: string,
     replyTo?: Message['replyTo']
   ) => Promise<void>;
   /** Create a new chat or open existing one */
@@ -182,6 +204,54 @@ export const useChatStore = create<ChatState>((set, get) => ({
       );
       // Clear typing
       setTypingStatus(senderId, null).catch(() => {});
+    } catch (err: any) {
+      set({ error: err.message });
+      throw err;
+    } finally {
+      set({ sendingMessage: false });
+    }
+  },
+
+  sendImageMessage: async (senderId, senderName, senderPhoto, imageUri, fileName, replyTo) => {
+    const { activeChatId } = get();
+    if (!activeChatId) return;
+
+    set({ sendingMessage: true, error: null });
+    try {
+      await sendImageService(
+        activeChatId,
+        senderId,
+        senderName,
+        senderPhoto,
+        imageUri,
+        fileName,
+        replyTo
+      );
+    } catch (err: any) {
+      set({ error: err.message });
+      throw err;
+    } finally {
+      set({ sendingMessage: false });
+    }
+  },
+
+  sendDocumentMessage: async (senderId, senderName, senderPhoto, fileUri, fileName, fileSize, mimeType, replyTo) => {
+    const { activeChatId } = get();
+    if (!activeChatId) return;
+
+    set({ sendingMessage: true, error: null });
+    try {
+      await sendDocumentService(
+        activeChatId,
+        senderId,
+        senderName,
+        senderPhoto,
+        fileUri,
+        fileName,
+        fileSize,
+        mimeType,
+        replyTo
+      );
     } catch (err: any) {
       set({ error: err.message });
       throw err;

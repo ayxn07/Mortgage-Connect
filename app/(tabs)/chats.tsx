@@ -18,6 +18,7 @@ import { useChatStore } from '@/src/store/chatStore';
 import { useAuthStore } from '@/src/store/authStore';
 import { getAdminUser } from '@/src/services/auth';
 import { Search, MessageCircle } from '@/components/Icons';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Feather } from '@expo/vector-icons';
 import type { ChatListItem } from '@/src/types/chat';
 import type { User } from '@/src/types/user';
@@ -288,11 +289,18 @@ export default function ChatsScreen() {
       <SafeAreaView
         className={`flex-1 ${isDark ? 'bg-black' : 'bg-gray-50'}`}
         edges={['top']}>
-        <View className="px-6 pt-4 pb-2">
-          <Text
-            className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-            Messages
-          </Text>
+        <View className="px-6 pt-2 pb-6">
+          <View className="flex-row items-center justify-between">
+            <View>
+              <Text className={`text-sm mb-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                Stay connected
+              </Text>
+              <Text className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+                Messages
+              </Text>
+            </View>
+            <ThemeToggle />
+          </View>
         </View>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color={isDark ? '#fff' : '#000'} size="large" />
@@ -308,22 +316,22 @@ export default function ChatsScreen() {
       className={`flex-1 ${isDark ? 'bg-black' : 'bg-gray-50'}`}
       edges={['top']}>
       {/* Header */}
-      <View className="px-6 pt-4 pb-2">
+      <View className="px-6 pt-2 pb-6">
         <View className="flex-row items-center justify-between">
           <View>
-            <Text
-              className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-black'
-                }`}>
+            <Text className={`text-sm mb-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+              Stay connected
+            </Text>
+            <Text className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
               Messages
             </Text>
             {totalUnread > 0 && (
-              <Text
-                className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'
-                  }`}>
+              <Text className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                 {totalUnread} unread message{totalUnread !== 1 ? 's' : ''}
               </Text>
             )}
           </View>
+          <ThemeToggle />
         </View>
       </View>
 
@@ -377,28 +385,24 @@ export default function ChatsScreen() {
 
       {/* Search Bar */}
       {chats.length > 0 && (
-        <View className="px-5 py-2">
+        <View className="px-6 pb-3">
           <View
-            className={`flex-row items-center rounded-2xl px-4 py-3 ${isDark
-              ? 'bg-[#141414] border border-[#252525]'
-              : 'bg-white border border-gray-200'
-              }`}>
-            <Search color={isDark ? '#555' : '#999'} size={18} />
+            className={`flex-row items-center rounded-2xl px-4 py-3 ${
+              isDark ? 'bg-[#141414] border border-[#252525]' : 'bg-white border border-gray-200'
+            }`}>
+            <Search color={isDark ? '#666' : '#999'} size={20} />
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder="Search conversations..."
-              placeholderTextColor={isDark ? '#555' : '#999'}
-              className={`flex-1 ml-3 text-sm ${isDark ? 'text-white' : 'text-gray-900'
-                }`}
+              placeholderTextColor={isDark ? '#555' : '#aaa'}
+              className={`flex-1 ml-3 text-base ${isDark ? 'text-white' : 'text-black'}`}
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Feather
-                  name="x"
-                  size={18}
-                  color={isDark ? '#555' : '#999'}
-                />
+              <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
+                <Text className={`text-sm font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Clear
+                </Text>
               </TouchableOpacity>
             )}
           </View>
