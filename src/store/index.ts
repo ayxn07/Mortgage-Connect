@@ -11,3 +11,4 @@ export { useFavoritesStore } from './favoritesStore';
 export { useSettingsStore } from './settingsStore';
 export { useSupportStore, DEFAULT_FAQS } from './supportStore';
 export { useApplicationStore } from './applicationStore';
+export { useChatStore } from './chatStore';

@@ -50,3 +50,24 @@ export {
 
 // Seed service
 export { seedTestAgents, resetSeed } from './seedAgents';
+
+// Chat service
+export {
+  createChat,
+  findExistingChat,
+  sendMessage,
+  fetchMessages,
+  subscribeToMessages,
+  subscribeToChats,
+  markChatAsRead,
+  getTotalUnreadCount,
+  setTypingStatus,
+  subscribeToPresence,
+  updateOnlineStatus,
+  setCurrentChat,
+  deleteMessage,
+  editMessage,
+  toggleArchiveChat,
+  toggleMuteChat,
+  deleteChat,
+} from './chat';

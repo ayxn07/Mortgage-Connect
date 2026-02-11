@@ -10,12 +10,14 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from 'nativewind';
 import * as Haptics from 'expo-haptics';
+import { useChatStore } from '@/src/store/chatStore';
 
 const { width } = Dimensions.get('window');
 
 const ICON_MAP = {
   index: 'home',
   agents: 'users',
+  chats: 'message-circle',
   settings: 'settings',
 } as const;
 
@@ -25,6 +27,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
   const isDark = colorScheme === 'dark';
   const tabCount = state.routes.length;
   const tabWidth = (width - 72) / tabCount;
+  const totalUnread = useChatStore((s) => s.totalUnread);
   
   const translateX = useSharedValue(0);
 
@@ -86,6 +89,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
             isFocused={isFocused}
             onPress={onPress}
             isDark={isDark}
+            badge={route.name === 'chats' ? totalUnread : 0}
           />
         );
       })}
@@ -99,12 +103,14 @@ function TabButton({
   isFocused,
   onPress,
   isDark,
+  badge = 0,
 }: {
   label: string;
   iconName: string;
   isFocused: boolean;
   onPress: () => void;
   isDark: boolean;
+  badge?: number;
 }) {
   const scale = useSharedValue(1);
   const iconOpacity = useSharedValue(isFocused ? 1 : 0.5);
@@ -144,12 +150,30 @@ function TabButton({
       onPressOut={handlePressOut}
       style={styles.tabButton}>
       <Animated.View style={[styles.tabContent, animatedContainerStyle]}>
-        <Animated.View style={animatedIconStyle}>
+        <Animated.View style={[animatedIconStyle, { position: 'relative' }]}>
           <Feather
             name={iconName as any}
             size={24}
             color={isFocused ? (isDark ? '#000' : '#fff') : (isDark ? '#fff' : '#000')}
           />
+          {badge > 0 && !isFocused && (
+            <View style={{
+              position: 'absolute',
+              top: -4,
+              right: -8,
+              backgroundColor: '#ef4444',
+              borderRadius: 8,
+              minWidth: 16,
+              height: 16,
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingHorizontal: 3,
+            }}>
+              <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700' }}>
+                {badge > 99 ? '99+' : badge}
+              </Text>
+            </View>
+          )}
         </Animated.View>
         <Animated.Text style={[
           styles.label, 

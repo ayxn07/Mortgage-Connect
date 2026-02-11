@@ -5,9 +5,11 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DynamicStatusBar } from '@/components/DynamicStatusBar';
 import { ThemeTransitionProvider } from '@/components/ThemeTransition';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { LogBox } from 'react-native';
 import { useAuthStore } from '@/src/store/authStore';
 import { seedTestAgents } from '@/src/services/seedAgents';
+import { configureGoogleSignIn } from '@/src/services/googleSignInConfig';
 
 // Suppress SafeAreaView deprecation warning from third-party libraries
 LogBox.ignoreLogs([
@@ -21,6 +23,10 @@ export default function RootLayout() {
   useEffect(() => {
     console.log('[RootLayout] Initializing auth listener');
     const unsubscribe = initialize();
+
+    // Configure Google Sign-In
+    configureGoogleSignIn();
+
     return () => {
       console.log('[RootLayout] Cleaning up auth listener');
       unsubscribe();
@@ -29,7 +35,7 @@ export default function RootLayout() {
 
   // Seed test agents on first load
   const initialized = useAuthStore((s) => s.initialized);
-  
+
   useEffect(() => {
     if (initialized) {
       seedTestAgents();
@@ -37,11 +43,12 @@ export default function RootLayout() {
   }, [initialized]);
 
   return (
-    <ThemeProvider>
-      <SafeAreaProvider>
-        <ThemeTransitionProvider>
-          <DynamicStatusBar />
-          <Stack
+    <KeyboardProvider>
+      <ThemeProvider>
+        <SafeAreaProvider>
+          <ThemeTransitionProvider>
+            <DynamicStatusBar />
+            <Stack
             screenOptions={{
               headerShown: false,
               contentStyle: { backgroundColor: '#000' },
@@ -63,6 +70,13 @@ export default function RootLayout() {
               name="(tabs)"
               options={{
                 animation: 'fade',
+              }}
+            />
+            <Stack.Screen
+              name="chat"
+              options={{
+                presentation: 'card',
+                animation: 'slide_from_right',
               }}
             />
             <Stack.Screen
@@ -139,5 +153,6 @@ export default function RootLayout() {
         </ThemeTransitionProvider>
       </SafeAreaProvider>
     </ThemeProvider>
+    </KeyboardProvider>
   );
 }

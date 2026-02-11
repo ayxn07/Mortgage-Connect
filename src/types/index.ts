@@ -71,3 +71,17 @@ export type {
   CreateSupportQueryInput,
   FAQ,
 } from './support';
+
+// Chat
+export type {
+  Chat,
+  ChatType,
+  ChatParticipant,
+  Message,
+  MessageType,
+  MessageContent,
+  UserPresence,
+  SendMessageInput,
+  CreateChatInput,
+  ChatListItem,
+} from './chat';

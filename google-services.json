@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "571691878268-ejdf3r472du89ukj2k2c3vh0su4algni.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ayxn07.MortgageConnect",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
           "client_id": "571691878268-d6sms22kdbvuuhe5b5f39r1jp8tvegoa.apps.googleusercontent.com",
           "client_type": 3
         }

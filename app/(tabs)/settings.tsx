@@ -1,25 +1,19 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   User,
-  Bell,
-  Lock,
-  CreditCard,
   Globe,
   HelpCircle,
   FileText,
   LogOut,
   ChevronRight,
-  Mail,
-  Smartphone,
   Shield,
 } from '@/components/Icons';
 import { useRouter } from 'expo-router';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useColorScheme } from 'nativewind';
 import { useAuthStore } from '@/src/store/authStore';
-import { useSettingsStore } from '@/src/store/settingsStore';
 
 type SettingItemProps = {
   icon: React.ReactNode;
@@ -40,18 +34,16 @@ function SettingItem({
 }: SettingItemProps) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
-  
+
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
       disabled={!onPress}
-      className={`mb-3 flex-row items-center rounded-2xl border p-4 ${
-        isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
-      }`}>
-      <View className={`mr-3 h-10 w-10 items-center justify-center rounded-xl ${
-        isDark ? 'bg-white' : 'bg-black'
-      }`}>
+      className={`mb-3 flex-row items-center rounded-2xl border p-4 ${isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
+        }`}>
+      <View className={`mr-3 h-10 w-10 items-center justify-center rounded-xl ${isDark ? 'bg-white' : 'bg-black'
+        }`}>
         {icon}
       </View>
       <View className="flex-1">
@@ -75,7 +67,7 @@ function SettingItem({
 function SectionHeader({ title }: { title: string }) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
-  
+
   return (
     <Text className={`mb-3 px-1 text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>
       {title}
@@ -89,10 +81,7 @@ export default function SettingsScreen() {
   const isDark = colorScheme === 'dark';
 
   // Auth store — real user data
-  const { userDoc, firebaseUser, signOut, loading } = useAuthStore();
-
-  // Settings store — persisted notification preferences
-  const { notifications, setNotification } = useSettingsStore();
+  const { userDoc, firebaseUser, signOut } = useAuthStore();
 
   // Derive display values from auth
   const displayName = userDoc?.displayName ?? firebaseUser?.displayName ?? 'User';
@@ -179,16 +168,14 @@ export default function SettingsScreen() {
           paddingBottom: 120,
         }}
         showsVerticalScrollIndicator={false}>
-        
+
         {/* Profile Section */}
         <View className="mb-6">
           <SectionHeader title="Profile" />
-          <View className={`mb-3 flex-row items-center gap-4 rounded-2xl border p-5 ${
-            isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
-          }`}>
-            <View className={`h-16 w-16 items-center justify-center rounded-full ${
-              isDark ? 'bg-white' : 'bg-black'
+          <View className={`mb-3 flex-row items-center gap-4 rounded-2xl border p-5 ${isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
             }`}>
+            <View className={`h-16 w-16 items-center justify-center rounded-full ${isDark ? 'bg-white' : 'bg-black'
+              }`}>
               <Text className={`text-xl font-bold ${isDark ? 'text-black' : 'text-white'}`}>
                 {initials}
               </Text>
@@ -201,11 +188,7 @@ export default function SettingsScreen() {
                 {displayEmail}
               </Text>
             </View>
-            <TouchableOpacity activeOpacity={0.7}>
-              <Text className={`font-semibold ${isDark ? 'text-white' : 'text-black'}`}>
-                Edit
-              </Text>
-            </TouchableOpacity>
+
           </View>
         </View>
 
@@ -217,65 +200,6 @@ export default function SettingsScreen() {
             title="Personal Information"
             subtitle="Update your details"
             onPress={() => Alert.alert('Personal Info', 'Edit personal information')}
-          />
-          <SettingItem
-            icon={<CreditCard color={isDark ? '#000' : '#fff'} size={20} />}
-            title="Payment Methods"
-            subtitle="Manage cards and billing"
-            onPress={() => Alert.alert('Payment', 'Manage payment methods')}
-          />
-          <SettingItem
-            icon={<Lock color={isDark ? '#000' : '#fff'} size={20} />}
-            title="Password & Security"
-            subtitle="Change password, 2FA"
-            onPress={() => Alert.alert('Security', 'Update security settings')}
-          />
-        </View>
-
-        {/* Notifications Section */}
-        <View className="mb-6">
-          <SectionHeader title="Notifications" />
-          <SettingItem
-            icon={<Bell color={isDark ? '#000' : '#fff'} size={20} />}
-            title="Push Notifications"
-            subtitle="Booking updates and messages"
-            showChevron={false}
-            rightElement={
-              <Switch
-                value={notifications.push}
-                onValueChange={(val) => setNotification('push', val)}
-                trackColor={{ false: '#e5e5e5', true: isDark ? '#fff' : '#000' }}
-                thumbColor="#fff"
-              />
-            }
-          />
-          <SettingItem
-            icon={<Mail color={isDark ? '#000' : '#fff'} size={20} />}
-            title="Email Notifications"
-            subtitle="Promotional emails and updates"
-            showChevron={false}
-            rightElement={
-              <Switch
-                value={notifications.email}
-                onValueChange={(val) => setNotification('email', val)}
-                trackColor={{ false: '#e5e5e5', true: isDark ? '#fff' : '#000' }}
-                thumbColor="#fff"
-              />
-            }
-          />
-          <SettingItem
-            icon={<Smartphone color={isDark ? '#000' : '#fff'} size={20} />}
-            title="SMS Notifications"
-            subtitle="Important booking alerts"
-            showChevron={false}
-            rightElement={
-              <Switch
-                value={notifications.sms}
-                onValueChange={(val) => setNotification('sms', val)}
-                trackColor={{ false: '#e5e5e5', true: isDark ? '#fff' : '#000' }}
-                thumbColor="#fff"
-              />
-            }
           />
         </View>
 
@@ -305,12 +229,6 @@ export default function SettingsScreen() {
             subtitle="Legal information"
             onPress={() => Alert.alert('Legal', 'View terms and privacy policy')}
           />
-          <SettingItem
-            icon={<Shield color={isDark ? '#000' : '#fff'} size={20} />}
-            title="Test Firebase Connection"
-            subtitle="Check if Firebase is working"
-            onPress={() => router.push('/test-firebase')}
-          />
         </View>
 
         {/* Danger Zone */}
@@ -319,9 +237,8 @@ export default function SettingsScreen() {
           <TouchableOpacity
             onPress={handleLogout}
             activeOpacity={0.7}
-            className={`mb-3 flex-row items-center rounded-2xl border p-4 ${
-              isDark ? 'bg-[#1a1a1a] border-red-500/30' : 'bg-white border-red-500/30'
-            }`}>
+            className={`mb-3 flex-row items-center rounded-2xl border p-4 ${isDark ? 'bg-[#1a1a1a] border-red-500/30' : 'bg-white border-red-500/30'
+              }`}>
             <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-red-500/10">
               <LogOut color="#ef4444" size={20} />
             </View>
@@ -332,9 +249,8 @@ export default function SettingsScreen() {
           <TouchableOpacity
             onPress={handleDeleteAccount}
             activeOpacity={0.7}
-            className={`mb-3 flex-row items-center rounded-2xl border p-4 ${
-              isDark ? 'bg-[#1a1a1a] border-red-500/30' : 'bg-white border-red-500/30'
-            }`}>
+            className={`mb-3 flex-row items-center rounded-2xl border p-4 ${isDark ? 'bg-[#1a1a1a] border-red-500/30' : 'bg-white border-red-500/30'
+              }`}>
             <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-red-500/10">
               <Shield color="#ef4444" size={20} />
             </View>

@@ -37,12 +37,14 @@ import {
   Users,
   Globe,
   MessageCircle,
+  Send,
 } from '@/components/Icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useColorScheme } from 'nativewind';
 import { useAgentStore } from '@/src/store/agentStore';
 import { useFavorites } from '@/src/hooks/useFavorites';
 import { useAuthStore } from '@/src/store/authStore';
+import { useChatStore } from '@/src/store/chatStore';
 import { fetchAgentReviews, createReview } from '@/src/services/reviews';
 import type { Agent, Review } from '@/src/types';
 
@@ -154,6 +156,7 @@ export default function AgentDetailScreen() {
   const { selectedAgent, loading, fetchAgentById } = useAgentStore();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { firebaseUser, userDoc } = useAuthStore();
+  const { createOrOpenChat } = useChatStore();
 
   // Local state
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -162,6 +165,7 @@ export default function AgentDetailScreen() {
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [startingChat, setStartingChat] = useState(false);
 
   const agent = selectedAgent;
 
@@ -236,6 +240,34 @@ export default function AgentDetailScreen() {
   const handleEmail = () => {
     if (agent?.email) {
       Linking.openURL(`mailto:${agent.email}`);
+    }
+  };
+
+  const handleMessageAgent = async () => {
+    if (!firebaseUser || !userDoc || !agent) {
+      Alert.alert('Sign In Required', 'Please sign in to message this agent.');
+      return;
+    }
+
+    setStartingChat(true);
+    try {
+      const chatId = await createOrOpenChat(
+        firebaseUser.uid,
+        userDoc.displayName,
+        userDoc.photoURL || null,
+        userDoc.role,
+        {
+          otherUserId: agent.uid,
+          otherUserName: agent.displayName,
+          otherUserPhoto: agent.photoURL || null,
+          otherUserRole: 'agent',
+        }
+      );
+      router.push(`/chat/${chatId}`);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to start chat');
+    } finally {
+      setStartingChat(false);
     }
   };
 
@@ -743,32 +775,42 @@ export default function AgentDetailScreen() {
         }`}>
         <View className="flex-row gap-3 px-5 py-4">
           <TouchableOpacity
+            onPress={handleMessageAgent}
+            disabled={startingChat}
+            className={`flex-1 items-center justify-center rounded-2xl py-4 ${
+              isDark ? 'bg-white' : 'bg-gray-900'
+            } ${startingChat ? 'opacity-60' : ''}`}
+            activeOpacity={0.7}>
+            {startingChat ? (
+              <ActivityIndicator color={isDark ? '#000' : '#fff'} size="small" />
+            ) : (
+              <View className="flex-row items-center">
+                <Send color={isDark ? '#000' : '#fff'} size={18} />
+                <Text className={`ml-2 font-bold text-sm ${isDark ? 'text-black' : 'text-white'}`}>
+                  Message
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
             onPress={handleWhatsApp}
-            className={`flex-1 items-center justify-center rounded-2xl border py-4 ${
+            className={`items-center justify-center rounded-2xl border px-5 py-4 ${
               isDark
                 ? 'border-[#333] bg-[#141414]'
                 : 'border-gray-200 bg-gray-50'
             }`}
             activeOpacity={0.7}>
-            <View className="flex-row items-center">
-              <MessageCircle color="#22c55e" size={18} />
-              <Text className={`ml-2 font-bold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                WhatsApp
-              </Text>
-            </View>
+            <MessageCircle color="#22c55e" size={18} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={handleCall}
-            className={`flex-1 items-center justify-center rounded-2xl py-4 ${
-              isDark ? 'bg-white' : 'bg-gray-900'
+            className={`items-center justify-center rounded-2xl border px-5 py-4 ${
+              isDark
+                ? 'border-[#333] bg-[#141414]'
+                : 'border-gray-200 bg-gray-50'
             }`}
             activeOpacity={0.7}>
-            <View className="flex-row items-center">
-              <Phone color={isDark ? '#000' : '#fff'} size={18} />
-              <Text className={`ml-2 font-bold text-sm ${isDark ? 'text-black' : 'text-white'}`}>
-                Call Now
-              </Text>
-            </View>
+            <Phone color={isDark ? '#fff' : '#000'} size={18} />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
