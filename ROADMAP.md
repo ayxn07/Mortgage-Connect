@@ -859,14 +859,14 @@ interface UserPresence {
 
 ### 5.1 Project Setup
 
-- [ ] Create new Next.js project in `/admin` folder:
+- [x] Create new Next.js project in `/admin` folder:
 
 ```bash
 npx create-next-app@latest admin --typescript --tailwind --app
 cd admin
 ```
 
-- [ ] Install dependencies:
+- [x] Install dependencies:
 
 ```bash
 npm install firebase firebase-admin
@@ -874,7 +874,7 @@ npm install @shadcn/ui
 npx shadcn-ui@latest init
 ```
 
-- [ ] Install Shadcn UI components:
+- [x] Install Shadcn UI components:
 
 ```bash
 npx shadcn-ui@latest add button table card dialog input
@@ -882,8 +882,8 @@ npx shadcn-ui@latest add button table card dialog input
 
 ### 5.2 Firebase Admin SDK Setup
 
-- [ ] Download service account key from Firebase Console
-- [ ] Create `.env.local` in admin folder:
+- [x] Download service account key from Firebase Console
+- [x] Create `.env.local` in admin folder:
 
 ```env
 FIREBASE_PROJECT_ID=your-project-id
@@ -891,27 +891,27 @@ FIREBASE_CLIENT_EMAIL=your-client-email
 FIREBASE_PRIVATE_KEY=your-private-key
 ```
 
-- [ ] Initialize Firebase Admin in `lib/firebase-admin.ts`
+- [x] Initialize Firebase Admin in `lib/firebase-admin.ts`
 
 ### 5.3 Admin Authentication
 
-- [ ] Create admin login page (`app/login/page.tsx`)
-- [ ] Implement Firebase Auth login
-- [ ] Check admin role via:
+- [x] Create admin login page (`app/login/page.tsx`)
+- [x] Implement Firebase Auth login
+- [x] Check admin role via:
   - **Option 1:** Custom claims (recommended)
   - **Option 2:** Firestore `users/{uid}.role === 'admin'`
-- [ ] Add route protection middleware
-- [ ] Create admin layout with sidebar navigation
+- [x] Add route protection middleware
+- [x] Create admin layout with sidebar navigation
 
 ### 5.4 Dashboard - Users Management
 
-- [ ] Create `app/dashboard/users/page.tsx`
-- [ ] Display all users in table:
+- [x] Create `app/dashboard/users/page.tsx`
+- [x] Display all users in table:
   - Columns: Name, Email, Role, Created Date, Actions
-- [ ] Add filters:
+- [x] Add filters:
   - Filter by role (user/agent/admin)
   - Search by name/email
-- [ ] Implement actions:
+- [x] Implement actions:
   - View user details
   - Promote user to agent
   - Suspend/activate account
@@ -919,14 +919,14 @@ FIREBASE_PRIVATE_KEY=your-private-key
 
 ### 5.5 Dashboard - Agent Management
 
-- [ ] Create `app/dashboard/agents/page.tsx`
-- [ ] Display all agents in table
-- [ ] Show agent performance metrics:
+- [x] Create `app/dashboard/agents/page.tsx`
+- [x] Display all agents in table
+- [x] Show agent performance metrics:
   - Total bookings
   - Average rating
   - Response time
   - Revenue generated
-- [ ] Implement actions:
+- [x] Implement actions:
   - Approve/reject agent applications
   - Edit agent profiles
   - Manage agent availability
@@ -934,14 +934,14 @@ FIREBASE_PRIVATE_KEY=your-private-key
 
 ### 5.6 Dashboard - Applications Management
 
-- [ ] Create `app/dashboard/applications/page.tsx`
-- [ ] Display all mortgage applications in table:
+- [x] Create `app/dashboard/applications/page.tsx`
+- [x] Display all mortgage applications in table:
   - Columns: Application ID, User, Status, Property Price, Date, Actions
-- [ ] Add filters:
+- [x] Add filters:
   - Filter by status (pending/under_review/approved/rejected)
   - Filter by date range
   - Search by user name or application ID
-- [ ] Implement actions:
+- [x] Implement actions:
   - View full application details
   - View uploaded documents securely
   - Update application status
@@ -951,10 +951,10 @@ FIREBASE_PRIVATE_KEY=your-private-key
 
 ### 5.7 Dashboard - Support Tickets
 
-- [ ] Create `app/dashboard/support/page.tsx`
-- [ ] Display all support queries in table
-- [ ] Filter by status (open/in_progress/resolved/closed)
-- [ ] Implement actions:
+- [x] Create `app/dashboard/support/page.tsx`
+- [x] Display all support queries in table
+- [x] Filter by status (open/in_progress/resolved/closed)
+- [x] Implement actions:
   - View ticket details
   - Update status
   - Add admin response
@@ -962,28 +962,28 @@ FIREBASE_PRIVATE_KEY=your-private-key
 
 ### 5.8 Dashboard - Analytics
 
-- [ ] Create `app/dashboard/analytics/page.tsx`
-- [ ] Display key metrics:
+- [x] Create `app/dashboard/analytics/page.tsx`
+- [x] Display key metrics:
   - Total users/agents/applications
   - Application status breakdown (pie chart)
   - User growth over time (line chart)
   - Revenue metrics
   - Top-rated agents
   - Most active users
-- [ ] Add date range selector
+- [x] Add date range selector
 - [ ] Export data to CSV
 
 ### ✅ Phase 5 Definition of Done
 
-- [ ] Admin panel deployed and accessible
-- [ ] Admin login with role verification works
-- [ ] Users table displays all users with actions
-- [ ] Promote to agent functionality works
-- [ ] Applications table shows all applications
-- [ ] Status update triggers notification to user
-- [ ] Documents can be viewed securely
-- [ ] Support tickets can be managed
-- [ ] Analytics dashboard displays metrics
+- [x] Admin panel deployed and accessible
+- [x] Admin login with role verification works
+- [x] Users table displays all users with actions
+- [x] Promote to agent functionality works
+- [x] Applications table shows all applications
+- [x] Status update triggers notification to user
+- [x] Documents can be viewed securely
+- [x] Support tickets can be managed
+- [x] Analytics dashboard displays metrics
 
 ---
 
@@ -1099,6 +1099,7 @@ service firebase.storage {
 
 ```bash
 npm install @react-native-firebase/messaging
+
 npx expo install expo-notifications
 ```
 

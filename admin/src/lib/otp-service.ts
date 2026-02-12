@@ -63,15 +63,31 @@ export async function sendOTP(email: string, password: string): Promise<void> {
         const emailKey = sanitizeEmail(email);
         await setDoc(doc(db, "otps", emailKey), otpData);
 
-        // TODO: In production, call a Cloud Function to send email
-        // For now, log to console (in development)
-        console.log(`OTP for ${email}: ${code}`);
-        console.log(`This OTP will expire in 10 minutes`);
+        // Send OTP via Cloud Function
+        try {
+            const FIREBASE_PROJECT_ID = 'mortgage-connect-5b774';
+            const cloudFunctionUrl = `https://us-central1-${FIREBASE_PROJECT_ID}.cloudfunctions.net/sendOTPEmail`;
+            
+            const response = await fetch(cloudFunctionUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, code, type: 'admin' }),
+            });
 
-        // You can implement email sending via:
-        // 1. Firebase Cloud Functions with SendGrid/Mailgun
-        // 2. A backend API endpoint
-        // 3. Firebase Extensions (Trigger Email)
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Failed to send OTP email');
+            }
+
+            console.log(`OTP sent successfully to ${email}`);
+        } catch (emailError) {
+            console.error('Failed to send OTP email:', emailError);
+            // Delete the OTP from Firestore if email fails
+            await deleteDoc(doc(db, "otps", emailKey));
+            throw new Error('Failed to send verification email. Please try again.');
+        }
 
     } catch (error: any) {
         if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
@@ -97,6 +113,15 @@ export async function verifyOTP(email: string, code: string): Promise<void> {
 
         const otpData = otpsSnapshot.data() as OTPData;
         const now = Date.now();
+
+        // Debug logging
+        console.log('OTP Verification Debug:', {
+            currentTime: now,
+            expiresAt: otpData.expiresAt,
+            createdAt: otpData.createdAt,
+            timeRemaining: Math.floor((otpData.expiresAt - now) / 1000) + ' seconds',
+            isExpired: now > otpData.expiresAt
+        });
 
         // Check if OTP is expired
         if (now > otpData.expiresAt) {
@@ -158,9 +183,31 @@ export async function resendOTP(email: string): Promise<void> {
 
         await setDoc(otpDocRef, otpData);
 
-        // TODO: Send email with new OTP
-        console.log(`New OTP for ${email}: ${code}`);
-        console.log(`This OTP will expire in 10 minutes`);
+        // Send new OTP via Cloud Function
+        try {
+            const FIREBASE_PROJECT_ID = 'mortgage-connect-5b774';
+            const cloudFunctionUrl = `https://us-central1-${FIREBASE_PROJECT_ID}.cloudfunctions.net/sendOTPEmail`;
+            
+            const response = await fetch(cloudFunctionUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, code, type: 'admin' }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Failed to send OTP email');
+            }
+
+            console.log(`New OTP sent successfully to ${email}`);
+        } catch (emailError) {
+            console.error('Failed to send new OTP email:', emailError);
+            // Delete the OTP from Firestore if email fails
+            await deleteDoc(otpDocRef);
+            throw new Error('Failed to send verification email. Please try again.');
+        }
     } catch (error: any) {
         throw new Error("Failed to resend OTP");
     }

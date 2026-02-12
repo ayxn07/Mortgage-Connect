@@ -41,8 +41,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [userDoc, setUserDoc] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
-  const [pendingPassword, setPendingPassword] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -70,9 +68,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // Store credentials for later use after OTP verification
-    setPendingEmail(email);
-    setPendingPassword(password);
+    // Store credentials in sessionStorage for later use after OTP verification
+    sessionStorage.setItem('pendingEmail', email);
+    sessionStorage.setItem('pendingPassword', password);
 
     const cred = await signInWithEmailAndPassword(auth, email, password);
     const docRef = doc(db, "users", cred.user.uid);
@@ -81,14 +79,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userData = docSnap.data() as User;
       if (userData.role !== "admin") {
         await firebaseSignOut(auth);
-        setPendingEmail(null);
-        setPendingPassword(null);
+        sessionStorage.removeItem('pendingEmail');
+        sessionStorage.removeItem('pendingPassword');
         throw new Error("Access denied. Admin privileges required.");
       }
     } else {
       await firebaseSignOut(auth);
-      setPendingEmail(null);
-      setPendingPassword(null);
+      sessionStorage.removeItem('pendingEmail');
+      sessionStorage.removeItem('pendingPassword');
       throw new Error("User account not found.");
     }
 
@@ -98,7 +96,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const completeSignIn = async (email: string) => {
     // This is called after OTP verification
-    // We need to get the password from storage or re-authenticate
+    // Get credentials from sessionStorage
+    const pendingEmail = sessionStorage.getItem('pendingEmail');
+    const pendingPassword = sessionStorage.getItem('pendingPassword');
+
+    console.log('CompleteSignIn - Checking sessionStorage:', {
+      hasPendingEmail: !!pendingEmail,
+      hasPendingPassword: !!pendingPassword,
+      emailMatch: pendingEmail === email
+    });
+
     if (!pendingEmail || !pendingPassword) {
       throw new Error("Session expired. Please login again.");
     }
@@ -111,16 +118,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUserDoc(docSnap.data() as User);
     }
 
-    // Clear pending credentials
-    setPendingEmail(null);
-    setPendingPassword(null);
+    // Clear pending credentials from sessionStorage
+    sessionStorage.removeItem('pendingEmail');
+    sessionStorage.removeItem('pendingPassword');
   };
 
   const signOut = async () => {
     await firebaseSignOut(auth);
     setUserDoc(null);
-    setPendingEmail(null);
-    setPendingPassword(null);
+    sessionStorage.removeItem('pendingEmail');
+    sessionStorage.removeItem('pendingPassword');
   };
 
   const isAdmin = userDoc?.role === "admin";

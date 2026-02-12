@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, Image, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, MapPin, Calendar, Star, ChevronRight, TrendingUp, Award, Users, CreditCard, FileText } from '@/components/Icons';
+import { Search, MapPin, Calendar, Star, ChevronRight, TrendingUp, Award, Users, CreditCard, FileText, Shield } from '@/components/Icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -24,6 +24,9 @@ const quickActions = [
   { id: 3, icon: FileText, label: 'Apply Now', description: 'Mortgage form', href: '/application' as const },
   { id: 4, icon: TrendingUp, label: 'My Apps', description: 'Track status', href: '/my-applications' as const },
 ];
+
+// Admin quick action
+const adminAction = { id: 5, icon: Shield, label: 'Admin Panel', description: 'Dashboard', href: '/admin' as const };
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -225,6 +228,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { userDoc, firebaseUser } = useAuthStore();
   const { featuredAgents, featuredLoading, agents, fetchFeaturedAgents, subscribe } = useAgentStore();
+  const isAdmin = userDoc?.role === 'admin';
 
   // Show first name only
   const fullName = userDoc?.displayName ?? firebaseUser?.displayName ?? 'User';
@@ -273,6 +277,30 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}>
         
+        {/* Admin Dashboard Banner */}
+        {isAdmin && (
+          <Pressable
+            onPress={() => router.push('/admin' as any)}
+            className={`mx-6 mb-6 rounded-3xl border-2 p-4 flex-row items-center ${
+              isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-black border-black'
+            }`}>
+            <View className={`w-12 h-12 rounded-2xl items-center justify-center mr-4 ${
+              isDark ? 'bg-white' : 'bg-white'
+            }`}>
+              <Shield color="#000" size={22} strokeWidth={2.5} />
+            </View>
+            <View className="flex-1">
+              <Text className="text-base font-bold text-white">
+                Admin Dashboard
+              </Text>
+              <Text className="text-xs text-gray-400 mt-0.5">
+                Manage users, apps, support & analytics
+              </Text>
+            </View>
+            <ChevronRight color="#666" size={20} />
+          </Pressable>
+        )}
+
         {/* Quick Actions Grid */}
         <View className="px-6 mb-8">
           <View className="flex-row flex-wrap justify-between gap-y-3">

@@ -147,3 +147,119 @@ export const Smartphone = ({ size = 24, color, className }: IconProps) => (
 export const Shield = ({ size = 24, color, className }: IconProps) => (
   <Feather name="shield" size={size} color={color || getColor(className)} />
 );
+
+export const BarChart2 = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="bar-chart-2" size={size} color={color || getColor(className)} />
+);
+
+export const Activity = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="activity" size={size} color={color || getColor(className)} />
+);
+
+export const AlertCircle = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="alert-circle" size={size} color={color || getColor(className)} />
+);
+
+export const Clock = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="clock" size={size} color={color || getColor(className)} />
+);
+
+export const Eye = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="eye" size={size} color={color || getColor(className)} />
+);
+
+export const Trash2 = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="trash-2" size={size} color={color || getColor(className)} />
+);
+
+export const Edit3 = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="edit-3" size={size} color={color || getColor(className)} />
+);
+
+export const ChevronLeft = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="chevron-left" size={size} color={color || getColor(className)} />
+);
+
+export const Filter = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="filter" size={size} color={color || getColor(className)} />
+);
+
+export const X = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="x" size={size} color={color || getColor(className)} />
+);
+
+export const MoreVertical = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="more-vertical" size={size} color={color || getColor(className)} />
+);
+
+export const Briefcase = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="briefcase" size={size} color={color || getColor(className)} />
+);
+
+export const Home = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="home" size={size} color={color || getColor(className)} />
+);
+
+export const PieChart = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="pie-chart" size={size} color={color || getColor(className)} />
+);
+
+export const Download = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="download" size={size} color={color || getColor(className)} />
+);
+
+export const Hash = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="hash" size={size} color={color || getColor(className)} />
+);
+
+export const Inbox = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="inbox" size={size} color={color || getColor(className)} />
+);
+
+export const ToggleLeft = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="toggle-left" size={size} color={color || getColor(className)} />
+);
+
+export const ToggleRight = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="toggle-right" size={size} color={color || getColor(className)} />
+);
+
+export const Grid = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="grid" size={size} color={color || getColor(className)} />
+);
+
+export const Camera = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="camera" size={size} color={color || getColor(className)} />
+);
+
+export const Plus = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="plus" size={size} color={color || getColor(className)} />
+);
+
+export const Minus = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="minus" size={size} color={color || getColor(className)} />
+);
+
+export const Save = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="save" size={size} color={color || getColor(className)} />
+);
+
+export const Image = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="image" size={size} color={color || getColor(className)} />
+);
+
+export const XCircle = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="x-circle" size={size} color={color || getColor(className)} />
+);
+
+export const Check = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="check" size={size} color={color || getColor(className)} />
+);
+
+export const DollarSign = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="dollar-sign" size={size} color={color || getColor(className)} />
+);
+
+export const Type = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="type" size={size} color={color || getColor(className)} />
+);

@@ -30,12 +30,25 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      // Store credentials in sessionStorage FIRST
+      sessionStorage.setItem('pendingEmail', email);
+      sessionStorage.setItem('pendingPassword', password);
+      console.log('Credentials stored in sessionStorage');
+      
       // Import dynamically to avoid loading at module level
       const { sendOTP } = await import("@/lib/otp-service");
       await sendOTP(email, password);
+      
+      // Verify credentials are still there
+      console.log('After sendOTP - pendingEmail exists:', !!sessionStorage.getItem('pendingEmail'));
+      
       // Redirect to OTP verification page
       router.push(`/login/verify-otp?email=${encodeURIComponent(email)}`);
     } catch (err: unknown) {
+      // Clear credentials on error
+      sessionStorage.removeItem('pendingEmail');
+      sessionStorage.removeItem('pendingPassword');
+      
       const message =
         err instanceof Error ? err.message : "Login failed. Please try again.";
       setError(message);
@@ -45,8 +58,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center px-4 relative">
+      <div 
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: 'url(https://resend.com/_next/image?url=%2Fstatic%2Fbackground-auth.jpg&w=640&q=100&dpl=dpl_DrM4fVsRD73Noxzgfxb6ivKAQqW2)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      />
+      <Card className="w-full max-w-md relative z-10">
         <CardHeader className="text-center space-y-2">
           <div className="mx-auto mb-2 flex items-center justify-center">
             <Image

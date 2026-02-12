@@ -1,5 +1,6 @@
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
+import { getApiUrl, API_ENDPOINTS } from '../config/api';
 
 interface OTPData {
     code: string;
@@ -55,15 +56,38 @@ export async function sendOTP(email: string, password: string): Promise<void> {
         const emailKey = sanitizeEmail(email);
         await firestore().collection('otps').doc(emailKey).set(otpData);
 
-        // TODO: In production, trigger a Cloud Function to send email
-        // For now, log to console (development only)
-        console.log(`OTP for ${email}: ${code}`);
-        console.log(`This OTP will expire in 10 minutes`);
+        // Send OTP via Resend API (Cloud Function)
+        try {
+            const apiUrl = getApiUrl();
+            const fullUrl = `${apiUrl}${API_ENDPOINTS.sendOTP}`;
+            console.log(`Sending OTP to: ${fullUrl}`);
+            
+            const response = await fetch(fullUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, code, type: 'login' }),
+            });
 
-        // You can implement email sending via:
-        // 1. Firebase Cloud Functions with SendGrid/Mailgun
-        // 2. A backend API endpoint
-        // 3. Firebase Extensions (Trigger Email)
+            console.log(`Response status: ${response.status}`);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Error response:', errorText);
+                const errorData = JSON.parse(errorText || '{}');
+                throw new Error(errorData.error || `Failed to send OTP email (${response.status})`);
+            }
+
+            const result = await response.json();
+            console.log(`OTP sent successfully to ${email}`, result);
+        } catch (emailError: any) {
+            console.error('Failed to send OTP email:', emailError);
+            console.error('Error details:', emailError.message);
+            // Delete the OTP from Firestore if email fails
+            await firestore().collection('otps').doc(emailKey).delete();
+            throw new Error(`Failed to send verification email: ${emailError.message}`);
+        }
     } catch (error: any) {
         if (
             error.code === 'auth/user-not-found' ||
@@ -97,9 +121,38 @@ export async function sendSignupOTP(email: string): Promise<void> {
         const emailKey = sanitizeEmail(email);
         await firestore().collection('otps').doc(emailKey).set(otpData);
 
-        // TODO: In production, trigger a Cloud Function to send email
-        console.log(`OTP for ${email}: ${code}`);
-        console.log(`This OTP will expire in 10 minutes`);
+        // Send OTP via Resend API (Cloud Function)
+        try {
+            const apiUrl = getApiUrl();
+            const fullUrl = `${apiUrl}${API_ENDPOINTS.sendOTP}`;
+            console.log(`Sending signup OTP to: ${fullUrl}`);
+            
+            const response = await fetch(fullUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, code, type: 'signup' }),
+            });
+
+            console.log(`Response status: ${response.status}`);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Error response:', errorText);
+                const errorData = JSON.parse(errorText || '{}');
+                throw new Error(errorData.error || `Failed to send OTP email (${response.status})`);
+            }
+
+            const result = await response.json();
+            console.log(`Signup OTP sent successfully to ${email}`, result);
+        } catch (emailError: any) {
+            console.error('Failed to send signup OTP email:', emailError);
+            console.error('Error details:', emailError.message);
+            // Delete the OTP from Firestore if email fails
+            await firestore().collection('otps').doc(emailKey).delete();
+            throw new Error(`Failed to send verification email: ${emailError.message}`);
+        }
     } catch (error: any) {
         throw new Error('Failed to send OTP');
     }
@@ -176,9 +229,38 @@ export async function resendOTP(email: string): Promise<void> {
 
         await firestore().collection('otps').doc(emailKey).set(otpData);
 
-        // TODO: Send email with new OTP
-        console.log(`New OTP for ${email}: ${code}`);
-        console.log(`This OTP will expire in 10 minutes`);
+        // Send new OTP via Resend API (Cloud Function)
+        try {
+            const apiUrl = getApiUrl();
+            const fullUrl = `${apiUrl}${API_ENDPOINTS.sendOTP}`;
+            console.log(`Resending OTP to: ${fullUrl}`);
+            
+            const response = await fetch(fullUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, code, type: 'resend' }),
+            });
+
+            console.log(`Response status: ${response.status}`);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Error response:', errorText);
+                const errorData = JSON.parse(errorText || '{}');
+                throw new Error(errorData.error || `Failed to send OTP email (${response.status})`);
+            }
+
+            const result = await response.json();
+            console.log(`New OTP sent successfully to ${email}`, result);
+        } catch (emailError: any) {
+            console.error('Failed to send new OTP email:', emailError);
+            console.error('Error details:', emailError.message);
+            // Delete the OTP from Firestore if email fails
+            await firestore().collection('otps').doc(emailKey).delete();
+            throw new Error(`Failed to send verification email: ${emailError.message}`);
+        }
     } catch (error: any) {
         throw new Error('Failed to resend OTP');
     }

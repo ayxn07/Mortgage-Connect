@@ -32,6 +32,19 @@ export default function VerifyOTPPage() {
     useEffect(() => {
         if (!email) {
             router.push("/login");
+            return;
+        }
+        
+        // Check if credentials exist in sessionStorage
+        const hasCreds = sessionStorage.getItem('pendingEmail') && sessionStorage.getItem('pendingPassword');
+        console.log('VerifyOTP page loaded - sessionStorage check:', {
+            email,
+            hasCredentials: hasCreds,
+            pendingEmail: sessionStorage.getItem('pendingEmail')
+        });
+        
+        if (!hasCreds) {
+            console.warn('No credentials found in sessionStorage on OTP page load');
         }
     }, [email, router]);
 
@@ -123,8 +136,17 @@ export default function VerifyOTPPage() {
     if (!email) return null;
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-background px-4">
-            <Card className="w-full max-w-md">
+        <div className="min-h-screen flex items-center justify-center px-4 relative">
+            <div 
+                className="absolute inset-0 z-0"
+                style={{
+                    backgroundImage: 'url(https://resend.com/_next/image?url=%2Fstatic%2Fbackground-auth.jpg&w=640&q=100&dpl=dpl_DrM4fVsRD73Noxzgfxb6ivKAQqW2)',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat'
+                }}
+            />
+            <Card className="w-full max-w-md relative z-10">
                 <CardHeader className="text-center space-y-2">
                     <div className="mx-auto mb-2 flex items-center justify-center">
                         <Image
