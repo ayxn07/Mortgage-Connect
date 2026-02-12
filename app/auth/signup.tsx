@@ -82,7 +82,11 @@ export default function SignupScreen() {
         displayName: displayName.trim(),
         phone: phone.trim() || undefined,
       });
-      router.replace('/(tabs)');
+      // Redirect to OTP verification
+      router.push({
+        pathname: '/auth/verify-otp',
+        params: { email: email.trim(), type: 'signup' }
+      });
     } catch (err: any) {
       let message = 'Signup failed. Please try again.';
       if (err.code === 'auth/email-already-in-use') {
@@ -143,8 +147,8 @@ export default function SignupScreen() {
               Full Name
             </Text>
             <View className={`flex-row items-center rounded-xl border-2 px-4 ${errors.displayName
-                ? 'border-red-500'
-                : isDark ? 'border-[#333] bg-[#1a1a1a]' : 'border-gray-200 bg-white'
+              ? 'border-red-500'
+              : isDark ? 'border-[#333] bg-[#1a1a1a]' : 'border-gray-200 bg-white'
               }`}>
               <User color={isDark ? '#666' : '#999'} size={18} />
               <TextInput
@@ -167,8 +171,8 @@ export default function SignupScreen() {
               Email
             </Text>
             <View className={`flex-row items-center rounded-xl border-2 px-4 ${errors.email
-                ? 'border-red-500'
-                : isDark ? 'border-[#333] bg-[#1a1a1a]' : 'border-gray-200 bg-white'
+              ? 'border-red-500'
+              : isDark ? 'border-[#333] bg-[#1a1a1a]' : 'border-gray-200 bg-white'
               }`}>
               <Mail color={isDark ? '#666' : '#999'} size={18} />
               <TextInput
@@ -213,8 +217,8 @@ export default function SignupScreen() {
               Password
             </Text>
             <View className={`flex-row items-center rounded-xl border-2 px-4 ${errors.password
-                ? 'border-red-500'
-                : isDark ? 'border-[#333] bg-[#1a1a1a]' : 'border-gray-200 bg-white'
+              ? 'border-red-500'
+              : isDark ? 'border-[#333] bg-[#1a1a1a]' : 'border-gray-200 bg-white'
               }`}>
               <Lock color={isDark ? '#666' : '#999'} size={18} />
               <TextInput
@@ -266,8 +270,8 @@ export default function SignupScreen() {
               Confirm Password
             </Text>
             <View className={`flex-row items-center rounded-xl border-2 px-4 ${errors.confirmPassword
-                ? 'border-red-500'
-                : isDark ? 'border-[#333] bg-[#1a1a1a]' : 'border-gray-200 bg-white'
+              ? 'border-red-500'
+              : isDark ? 'border-[#333] bg-[#1a1a1a]' : 'border-gray-200 bg-white'
               }`}>
               <Lock color={isDark ? '#666' : '#999'} size={18} />
               <TextInput

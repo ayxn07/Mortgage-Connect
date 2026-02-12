@@ -60,7 +60,11 @@ export default function LoginScreen() {
     setIsEmailLoading(true);
     try {
       await signIn(email.trim(), password);
-      router.replace('/(tabs)');
+      // Redirect to OTP verification
+      router.push({
+        pathname: '/auth/verify-otp',
+        params: { email: email.trim(), type: 'login' }
+      });
     } catch (err: any) {
       let message = 'Login failed. Please try again.';
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {

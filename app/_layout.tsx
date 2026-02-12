@@ -52,7 +52,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ThemeTransitionProvider>
           <DynamicStatusBar />
-            <Stack
+          <Stack
             screenOptions={{
               headerShown: false,
               contentStyle: { backgroundColor: '#000' },

@@ -30,14 +30,21 @@ interface AuthState {
   pendingGoogleRegistration: boolean;
   /** Internal flag: true while signInWithGoogle() is running (prevents onAuthStateChanged from interfering) */
   _signingInWithGoogle: boolean;
+  /** Pending credentials for OTP verification */
+  pendingEmail: string | null;
+  pendingPassword: string | null;
 
   // --- Actions ---
   /** Initialize the auth state listener (call once in root layout) */
   initialize: () => () => void;
-  /** Sign in with email & password */
+  /** Sign in with email & password (initiates OTP flow) */
   signIn: (email: string, password: string) => Promise<void>;
-  /** Create a new account */
+  /** Complete sign-in after OTP verification */
+  completeSignIn: (email: string) => Promise<void>;
+  /** Create a new account (initiates OTP flow) */
   signUp: (input: CreateUserInput) => Promise<void>;
+  /** Complete sign-up after OTP verification */
+  completeSignUp: () => Promise<void>;
   /** Sign in with Google */
   signInWithGoogle: () => Promise<{ isNewUser: boolean }>;
   /** Complete Google user registration */
@@ -62,6 +69,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initialized: false,
   pendingGoogleRegistration: false,
   _signingInWithGoogle: false,
+  pendingEmail: null,
+  pendingPassword: null,
 
   initialize: () => {
     // Set up auth state listener
@@ -121,9 +130,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signIn: async (email, password) => {
     set({ loading: true, error: null });
     try {
-      await signInWithEmail(email, password);
+      // Store credentials for later use after OTP verification
+      set({ pendingEmail: email, pendingPassword: password });
+
+      // Verify credentials (this will sign in and immediately sign out)
+      const { sendOTP } = await import('../services/otp');
+      await sendOTP(email, password);
+
+      set({ loading: false });
+    } catch (err: any) {
+      set({ error: err.message, loading: false, pendingEmail: null, pendingPassword: null });
+      throw err;
+    }
+  },
+
+  completeSignIn: async (email) => {
+    set({ loading: true, error: null });
+    try {
+      const { pendingEmail, pendingPassword } = get();
+
+      if (!pendingEmail || !pendingPassword) {
+        throw new Error('Session expired. Please login again.');
+      }
+
+      // Now actually sign in
+      await signInWithEmail(pendingEmail, pendingPassword);
       const doc = await getCurrentUserDoc();
-      set({ userDoc: doc, loading: false });
+
+      set({
+        userDoc: doc,
+        loading: false,
+        pendingEmail: null,
+        pendingPassword: null
+      });
     } catch (err: any) {
       set({ error: err.message, loading: false });
       throw err;
@@ -133,9 +172,45 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signUp: async (input) => {
     set({ loading: true, error: null });
     try {
+      // Store credentials for later use after OTP verification
+      set({ pendingEmail: input.email, pendingPassword: input.password });
+
+      // Create the account
       await signUpWithEmail(input);
+
+      // Sign out immediately - they need to verify OTP
+      await firebaseSignOut();
+
+      // Send OTP
+      const { sendSignupOTP } = await import('../services/otp');
+      await sendSignupOTP(input.email);
+
+      set({ loading: false });
+    } catch (err: any) {
+      set({ error: err.message, loading: false, pendingEmail: null, pendingPassword: null });
+      throw err;
+    }
+  },
+
+  completeSignUp: async () => {
+    set({ loading: true, error: null });
+    try {
+      const { pendingEmail, pendingPassword } = get();
+
+      if (!pendingEmail || !pendingPassword) {
+        throw new Error('Session expired. Please sign up again.');
+      }
+
+      // Sign in with the credentials
+      await signInWithEmail(pendingEmail, pendingPassword);
       const doc = await getCurrentUserDoc();
-      set({ userDoc: doc, loading: false });
+
+      set({
+        userDoc: doc,
+        loading: false,
+        pendingEmail: null,
+        pendingPassword: null
+      });
     } catch (err: any) {
       set({ error: err.message, loading: false });
       throw err;
@@ -199,7 +274,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await useChatStore.getState().cleanup(userId);
       }
       await firebaseSignOut();
-      set({ firebaseUser: null, userDoc: null, loading: false, pendingGoogleRegistration: false });
+      set({
+        firebaseUser: null,
+        userDoc: null,
+        loading: false,
+        pendingGoogleRegistration: false,
+        pendingEmail: null,
+        pendingPassword: null
+      });
     } catch (err: any) {
       set({ error: err.message, loading: false });
       throw err;

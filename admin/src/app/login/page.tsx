@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Lock, Mail, AlertCircle, Loader2 } from "lucide-react";
+import Image from "next/image";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -29,8 +30,11 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await signIn(email, password);
-      router.push("/dashboard");
+      // Import dynamically to avoid loading at module level
+      const { sendOTP } = await import("@/lib/otp-service");
+      await sendOTP(email, password);
+      // Redirect to OTP verification page
+      router.push(`/login/verify-otp?email=${encodeURIComponent(email)}`);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Login failed. Please try again.";
@@ -44,10 +48,14 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-2">
-          <div className="mx-auto w-12 h-12 bg-primary rounded-xl flex items-center justify-center mb-2">
-            <span className="text-primary-foreground font-bold text-lg">
-              MC
-            </span>
+          <div className="mx-auto mb-2 flex items-center justify-center">
+            <Image
+              src="/splash-icon.png"
+              alt="MortgageConnect Logo"
+              width={120}
+              height={120}
+              className="rounded-xl"
+            />
           </div>
           <CardTitle className="text-2xl font-bold">Admin Dashboard</CardTitle>
           <CardDescription>
