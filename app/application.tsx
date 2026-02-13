@@ -10,6 +10,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
+  Image,
+  Linking,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -354,6 +357,19 @@ function DocUploadCard({
 }) {
   const uploaded = documents.filter((d) => d.category === category);
   const hasDoc = uploaded.length > 0;
+  const [previewDoc, setPreviewDoc] = useState<UploadedDocument | null>(null);
+
+  const handlePreview = (doc: UploadedDocument) => {
+    const isImage = doc.mimeType?.startsWith('image/');
+    if (isImage) {
+      setPreviewDoc(doc);
+    } else {
+      // For PDFs and other files, try to open with system viewer
+      Linking.openURL(doc.downloadURL).catch(() => {
+        Alert.alert('Cannot Open', 'Unable to preview this file type.');
+      });
+    }
+  };
 
   return (
     <View className="mb-3">
@@ -391,26 +407,67 @@ function DocUploadCard({
         <Text className={`text-[10px] mt-1 ml-1 ${isDark ? 'text-gray-700' : 'text-gray-400'}`}>{hint}</Text>
       )}
       {/* Uploaded files list */}
-      {uploaded.map((doc) => (
-        <View
-          key={doc.id}
-          className={`flex-row items-center mt-2 ml-2 p-3 rounded-xl ${
-            isDark ? 'bg-[#0a0a0a]' : 'bg-gray-50'
-          }`}>
-          <Feather name="file" size={14} color="#22c55e" />
-          <View className="flex-1 ml-2">
-            <Text className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`} numberOfLines={1}>
-              {doc.fileName}
-            </Text>
-            <Text className={`text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
-              {fmtFileSize(doc.fileSize)}
-            </Text>
+      {uploaded.map((doc) => {
+        const isImage = doc.mimeType?.startsWith('image/');
+        return (
+          <View
+            key={doc.id}
+            className={`flex-row items-center mt-2 ml-2 p-3 rounded-xl ${
+              isDark ? 'bg-[#0a0a0a]' : 'bg-gray-50'
+            }`}>
+            {isImage && doc.downloadURL ? (
+              <Image
+                source={{ uri: doc.downloadURL }}
+                className="w-10 h-10 rounded-lg"
+                resizeMode="cover"
+              />
+            ) : (
+              <Feather name="file" size={14} color="#22c55e" />
+            )}
+            <View className="flex-1 ml-2">
+              <Text className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`} numberOfLines={1}>
+                {doc.fileName}
+              </Text>
+              <Text className={`text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                {fmtFileSize(doc.fileSize)}
+              </Text>
+            </View>
+            <Pressable onPress={() => handlePreview(doc)} className="p-1 mr-2">
+              <Feather name="eye" size={14} color={isDark ? '#888' : '#666'} />
+            </Pressable>
+            <Pressable onPress={() => onRemove(doc.id)} className="p-1">
+              <Feather name="x" size={14} color={isDark ? '#555' : '#aaa'} />
+            </Pressable>
           </View>
-          <Pressable onPress={() => onRemove(doc.id)} className="p-1">
-            <Feather name="x" size={14} color={isDark ? '#555' : '#aaa'} />
-          </Pressable>
-        </View>
-      ))}
+        );
+      })}
+
+      {/* Image Preview Modal */}
+      {previewDoc && (
+        <Modal
+          visible={true}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPreviewDoc(null)}>
+          <View className="flex-1 bg-black/90 justify-center items-center">
+            <Pressable
+              onPress={() => setPreviewDoc(null)}
+              className="absolute top-12 right-6 w-10 h-10 rounded-full bg-white/10 items-center justify-center z-10">
+              <Feather name="x" size={24} color="#fff" />
+            </Pressable>
+            <Image
+              source={{ uri: previewDoc.downloadURL }}
+              className="w-full h-full"
+              resizeMode="contain"
+            />
+            <View className="absolute bottom-12 left-0 right-0 items-center">
+              <View className="bg-black/70 px-6 py-3 rounded-2xl">
+                <Text className="text-white text-sm font-medium">{previewDoc.fileName}</Text>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -552,6 +609,7 @@ export default function ApplicationScreen() {
   const [currentStep, setCurrentStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [appId, setAppId] = useState('');
+  const [draftSaved, setDraftSaved] = useState(false);
 
   // Form data
   const [identity, setIdentity] = useState<ApplicantIdentity>(() => ({
@@ -734,7 +792,38 @@ export default function ApplicationScreen() {
 
   // ---- Document picker ----
   const handlePickDocument = async (category: DocumentCategory) => {
+    if (!firebaseUser) {
+      Alert.alert('Error', 'You must be logged in to upload documents.');
+      return;
+    }
+
     try {
+      // Save draft first if not already saved to get an application ID
+      let applicationId = appId;
+      if (!applicationId) {
+        try {
+          applicationId = await useApplicationStore.getState().saveDraft({
+            userId: firebaseUser.uid,
+            status: 'draft',
+            currentStep,
+            applicantIdentity: identity,
+            contactResidency: contact,
+            employmentIncome: employment,
+            financialObligations: financial,
+            propertyDetails: property,
+            mortgagePreferences: mortgage,
+            eligibilityResults: eligibility,
+            documentUploads: documents,
+            consentDeclarations: consent,
+          });
+          setAppId(applicationId);
+          setDraftSaved(true);
+        } catch (err: any) {
+          Alert.alert('Error', 'Failed to save draft. Please try again.');
+          return;
+        }
+      }
+
       const result = await DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'image/webp',
                'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
@@ -747,25 +836,75 @@ export default function ApplicationScreen() {
       const file = result.assets[0];
       if (!file) return;
 
-      const newDoc: UploadedDocument = {
-        id: `${category}_${Date.now()}`,
+      // Show uploading indicator
+      const tempId = `${category}_${Date.now()}`;
+      const tempDoc: UploadedDocument = {
+        id: tempId,
         category,
         fileName: file.name,
         fileSize: file.size || 0,
         mimeType: file.mimeType || 'application/octet-stream',
-        downloadURL: file.uri, // local URI; will be uploaded to Storage on submit
+        downloadURL: file.uri, // temporary local URI
         uploadedAt: new Date().toISOString(),
       };
 
+      // Add temp doc to show in UI
       setDocuments((prev) => ({
-        documents: [...prev.documents, newDoc],
+        documents: [...prev.documents, tempDoc],
       }));
+
+      // Upload to Firebase Storage
+      try {
+        const uploadedDoc = await useApplicationStore.getState().uploadDoc(
+          firebaseUser.uid,
+          applicationId,
+          category,
+          file.uri,
+          file.name,
+          file.size || 0,
+          file.mimeType || 'application/octet-stream'
+        );
+
+        // Replace temp doc with uploaded doc
+        setDocuments((prev) => ({
+          documents: prev.documents.map((d) => 
+            d.id === tempId ? uploadedDoc : d
+          ),
+        }));
+
+        // Update draft with new document
+        await useApplicationStore.getState().update(applicationId, {
+          documentUploads: {
+            documents: documents.documents.map((d) => 
+              d.id === tempId ? uploadedDoc : d
+            ),
+          },
+        });
+      } catch (uploadErr: any) {
+        // Remove temp doc on upload failure
+        setDocuments((prev) => ({
+          documents: prev.documents.filter((d) => d.id !== tempId),
+        }));
+        Alert.alert('Upload Failed', uploadErr.message || 'Failed to upload document to storage.');
+      }
     } catch (err) {
       Alert.alert('Upload Error', 'Failed to pick document. Please try again.');
     }
   };
 
-  const handleRemoveDocument = (docId: string) => {
+  const handleRemoveDocument = async (docId: string) => {
+    const doc = documents.documents.find((d) => d.id === docId);
+    if (!doc) return;
+
+    // If document has a Firebase Storage URL, delete it
+    if (doc.downloadURL && doc.downloadURL.startsWith('https://')) {
+      try {
+        await useApplicationStore.getState().deleteDoc(doc.downloadURL);
+      } catch (err) {
+        console.warn('Failed to delete document from storage:', err);
+      }
+    }
+
     setDocuments((prev) => ({
       documents: prev.documents.filter((d) => d.id !== docId),
     }));
@@ -841,12 +980,12 @@ export default function ApplicationScreen() {
           <Animated.View entering={FadeInUp.delay(600).duration(400)} className="w-full">
             <Pressable
               onPress={() => router.push('/my-applications' as any)}
-              className={`w-full rounded-2xl py-4 items-center mb-3 ${isDark ? 'bg-white' : 'bg-black'}`}>
+              className={`w-full rounded-2xl py-3.5 items-center mb-3 ${isDark ? 'bg-white' : 'bg-black'}`}>
               <Text className={`text-base font-bold ${isDark ? 'text-black' : 'text-white'}`}>Track Application</Text>
             </Pressable>
             <Pressable
               onPress={() => router.back()}
-              className={`w-full rounded-2xl py-4 items-center border ${
+              className={`w-full rounded-2xl py-3.5 items-center border ${
                 isDark ? 'border-[#2a2a2a]' : 'border-gray-200'
               }`}>
               <Text className={`text-base font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Back to Home</Text>
@@ -1747,10 +1886,9 @@ export default function ApplicationScreen() {
           {currentStep > 0 && (
             <Pressable
               onPress={goBack}
-              className={`flex-1 rounded-2xl py-4.5 items-center border ${
+              className={`flex-1 rounded-2xl py-3.5 items-center border ${
                 isDark ? 'border-[#2a2a2a]' : 'border-gray-300'
-              }`}
-              style={{ paddingVertical: 18 }}>
+              }`}>
               <Text className={`text-base font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Back</Text>
             </Pressable>
           )}
@@ -1758,9 +1896,8 @@ export default function ApplicationScreen() {
           {currentStep < STEPS.length - 1 ? (
             <Pressable
               onPress={goNext}
-              className={`${currentStep === 0 ? 'w-full' : 'flex-1'} rounded-2xl items-center ${isDark ? 'bg-white' : 'bg-black'}`}
+              className={`${currentStep === 0 ? 'w-full' : 'flex-1'} rounded-2xl py-3.5 items-center ${isDark ? 'bg-white' : 'bg-black'}`}
               style={{
-                paddingVertical: 18,
                 shadowColor: isDark ? '#fff' : '#000',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.2,
@@ -1773,11 +1910,10 @@ export default function ApplicationScreen() {
             <Pressable
               onPress={handleSubmit}
               disabled={loading}
-              className={`flex-1 rounded-2xl items-center flex-row justify-center ${
+              className={`flex-1 rounded-2xl py-3.5 items-center flex-row justify-center ${
                 loading ? 'opacity-50' : ''
               } ${isDark ? 'bg-white' : 'bg-black'}`}
               style={{
-                paddingVertical: 18,
                 shadowColor: isDark ? '#fff' : '#000',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.2,

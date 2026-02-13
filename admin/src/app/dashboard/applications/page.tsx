@@ -794,37 +794,48 @@ export default function ApplicationsPage() {
               <TabsContent value="documents" className="space-y-4 mt-4">
                 {selectedApp.documentUploads?.documents?.length > 0 ? (
                   <div className="space-y-3">
-                    {selectedApp.documentUploads.documents.map((doc) => (
-                      <div
-                        key={doc.id}
-                        className="flex items-center justify-between p-3 bg-muted rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          <FileText className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <p className="text-sm font-medium">
-                              {doc.fileName}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {doc.category} &middot;{" "}
-                              {(doc.fileSize / 1024).toFixed(1)} KB
-                            </p>
+                    {selectedApp.documentUploads.documents.map((doc) => {
+                      const isImage = doc.mimeType?.startsWith('image/');
+                      return (
+                        <div
+                          key={doc.id}
+                          className="flex items-start justify-between p-3 bg-muted rounded-lg gap-3"
+                        >
+                          <div className="flex items-start gap-3 flex-1">
+                            {isImage && doc.downloadURL ? (
+                              <img
+                                src={doc.downloadURL}
+                                alt={doc.fileName}
+                                className="h-16 w-16 object-cover rounded border"
+                              />
+                            ) : (
+                              <FileText className="h-5 w-5 text-muted-foreground mt-1" />
+                            )}
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">
+                                {doc.fileName}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {doc.category} &middot;{" "}
+                                {(doc.fileSize / 1024).toFixed(1)} KB
+                              </p>
+                            </div>
                           </div>
+                          {doc.downloadURL && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                window.open(doc.downloadURL, "_blank")
+                              }
+                            >
+                              <Download className="h-4 w-4 mr-1" />
+                              {isImage ? 'View' : 'Download'}
+                            </Button>
+                          )}
                         </div>
-                        {doc.downloadURL && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              window.open(doc.downloadURL, "_blank")
-                            }
-                          >
-                            <Download className="h-4 w-4 mr-1" />
-                            View
-                          </Button>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-4">

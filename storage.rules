@@ -1,0 +1,45 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check file size (max 10MB)
+    function isValidSize() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+    
+    // Helper function to check file type
+    function isValidFileType() {
+      return request.resource.contentType.matches('image/.*') ||
+             request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('application/msword') ||
+             request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.*');
+    }
+    
+    // Application documents
+    match /applications/{userId}/{applicationId}/{document} {
+      // Users can upload their own documents
+      allow create: if isAuthenticated() && 
+                      request.auth.uid == userId && 
+                      isValidSize() && 
+                      isValidFileType();
+      
+      // Users can read their own documents
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Users can delete their own documents
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Admin access (you can add admin check here if needed)
+    match /{allPaths=**} {
+      allow read: if false; // Deny by default, specific rules above
+      allow write: if false; // Deny by default, specific rules above
+    }
+  }
+}

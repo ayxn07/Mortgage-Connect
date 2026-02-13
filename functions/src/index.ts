@@ -69,6 +69,8 @@ export const sendOTPEmail = onRequest(
       }
 
       // Send email via Resend
+      // NOTE: Using onboarding@resend.dev for test mode (only sends to verified email)
+      // To send to any email, update to use verified domain: noreply@mortgageconnect.ae
       const { data, error } = await resend.emails.send({
         from: isAdmin 
           ? 'MortgageConnect Admin <onboarding@resend.dev>'
@@ -175,7 +177,17 @@ export const sendOTPEmail = onRequest(
 
       if (error) {
         console.error('Resend error:', error);
-        response.status(500).json({ error: 'Failed to send email', details: error });
+        
+        // Provide helpful error message for common issues
+        let errorMessage = 'Failed to send email';
+        if (error.message?.includes('testing emails')) {
+          errorMessage = 'Email can only be sent to verified addresses in test mode. Please verify a domain at resend.com/domains to send to any email address.';
+        }
+        
+        response.status(500).json({ 
+          error: errorMessage, 
+          details: error 
+        });
         return;
       }
 
