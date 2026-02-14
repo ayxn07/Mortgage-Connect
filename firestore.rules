@@ -13,10 +13,18 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
     // Users collection - allow read for all authenticated users
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow write: if isOwner(userId);
+      allow create: if isAuthenticated();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
     }
     
     // User presence collection (for online status and typing indicators)
@@ -82,6 +90,18 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow update: if isAuthenticated();
       allow delete: if isAuthenticated();
+    }
+    
+    // Feature flags - read for all authenticated users, write for admins only
+    match /featureFlags/{flagId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // App configuration - read for all authenticated users, write for admins only
+    match /appConfig/{configId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
   }
 }

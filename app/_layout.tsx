@@ -19,6 +19,7 @@ if (I18nManager.isRTL) {
 // Suppress SafeAreaView deprecation warning from third-party libraries
 LogBox.ignoreLogs([
   'SafeAreaView has been deprecated',
+  'statusBarTranslucent and navigationBarTranslucent',
 ]);
 
 export default function RootLayout() {
@@ -51,7 +52,7 @@ export default function RootLayout() {
     <ThemeProvider>
       <SafeAreaProvider>
         <ThemeTransitionProvider>
-          <DynamicStatusBar />
+            <DynamicStatusBar />
           <Stack
             screenOptions={{
               headerShown: false,
@@ -148,6 +149,27 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="calc-compare"
+              options={{
+                presentation: 'card',
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
+              name="calc-prepay"
+              options={{
+                presentation: 'card',
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
+              name="calc-rentvsbuy"
+              options={{
+                presentation: 'card',
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
+              name="ai-assistant"
               options={{
                 presentation: 'card',
                 animation: 'slide_from_right',

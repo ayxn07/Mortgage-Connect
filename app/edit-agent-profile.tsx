@@ -40,7 +40,8 @@ import {
   uploadAndUpdateProfilePhoto,
   updateAgentProfile,
 } from '@/src/services/profileService';
-import { firestore } from '@/src/services/firebase';
+import { db } from '@/src/services/firebase';
+import { doc, getDoc } from '@react-native-firebase/firestore';
 import type { Agent, AgentService } from '@/src/types/agent';
 import { AGENT_CATEGORIES } from '@/src/types/agent';
 
@@ -94,9 +95,9 @@ export default function EditAgentProfileScreen() {
     if (!uid) return;
     const loadAgent = async () => {
       try {
-        const doc = await firestore().collection('users').doc(uid).get();
-        if (doc.exists) {
-          const data = doc.data() as Agent;
+        const snap = await getDoc(doc(db, 'users', uid));
+        if (snap.exists()) {
+          const data = snap.data() as Agent;
           setAgentDoc(data);
           setDisplayName(data.displayName ?? '');
           setPhone(data.phone ?? '');

@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   X,
+  Settings,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,11 @@ const navItems = [
     title: "Analytics",
     href: "/dashboard/analytics",
     icon: BarChart3,
+  },
+  {
+    title: "Settings",
+    href: "/dashboard/settings",
+    icon: Settings,
   },
 ];
 

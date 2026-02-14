@@ -33,7 +33,8 @@
         {
           "iCloudContainerEnvironment": "Production"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -50,7 +51,7 @@
       "bundleIdentifier": "com.ayxn07.MortgageConnect",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
-"android": {
+    "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"

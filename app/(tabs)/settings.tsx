@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  User,
   Globe,
   HelpCircle,
   FileText,
@@ -10,10 +9,6 @@ import {
   ChevronRight,
   Shield,
   Edit3,
-  Briefcase,
-  MapPin,
-  Star,
-  Camera,
 } from '@/components/Icons';
 import { useRouter } from 'expo-router';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -148,8 +143,9 @@ export default function SettingsScreen() {
             try {
               // Delete Firestore doc first, then Firebase Auth user
               if (firebaseUser) {
-                const { firestore } = require('@/src/services/firebase');
-                await firestore().collection('users').doc(firebaseUser.uid).delete();
+                const { db } = require('@/src/services/firebase');
+                const { doc, deleteDoc } = require('@react-native-firebase/firestore');
+                await deleteDoc(doc(db, 'users', firebaseUser.uid));
                 await firebaseUser.delete();
               }
               router.replace('/auth/login');
@@ -199,76 +195,90 @@ export default function SettingsScreen() {
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={handleEditProfile}
-            className={`mb-3 rounded-2xl border p-5 ${isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
-              }`}>
-            <View className="flex-row items-center gap-4">
-              {/* Profile Photo */}
-              <View className="relative">
+            className={`rounded-3xl border overflow-hidden ${
+              isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
+            }`}>
+            {/* Background Gradient Effect */}
+            <View className={`h-24 ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+              <View className="absolute top-0 right-0 w-32 h-32 rounded-full bg-gradient-to-br opacity-10" 
+                style={{ 
+                  backgroundColor: isAdmin ? '#a855f7' : isAgent ? '#3b82f6' : isDark ? '#fff' : '#000',
+                  transform: [{ translateX: 40 }, { translateY: -40 }]
+                }} />
+            </View>
+
+            {/* Profile Content */}
+            <View className="px-5 pb-5" style={{ marginTop: -40 }}>
+              {/* Profile Photo with Border */}
+              <View className="relative mb-4">
                 <View
-                  className={`h-16 w-16 items-center justify-center rounded-full overflow-hidden ${
-                    isDark ? 'bg-white' : 'bg-black'
-                  }`}>
+                  className={`h-20 w-20 items-center justify-center rounded-full border-4 overflow-hidden ${
+                    isDark ? 'bg-white border-[#1a1a1a]' : 'bg-black border-white'
+                  }`}
+                  style={{
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 8,
+                    elevation: 8,
+                  }}>
                   {photoURL ? (
                     <Image
                       source={{ uri: photoURL }}
-                      className="h-16 w-16 rounded-full"
+                      className="h-full w-full"
                       resizeMode="cover"
                     />
                   ) : (
-                    <Text className={`text-xl font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+                    <Text className={`text-2xl font-bold ${isDark ? 'text-black' : 'text-white'}`}>
                       {initials}
                     </Text>
                   )}
                 </View>
-                {/* Small camera badge */}
-                <View
-                  className={`absolute -bottom-1 -right-1 h-6 w-6 items-center justify-center rounded-full border-2 ${
-                    isDark ? 'bg-[#2a2a2a] border-[#1a1a1a]' : 'bg-gray-200 border-white'
-                  }`}>
-                  <Camera color={isDark ? '#fff' : '#000'} size={10} />
-                </View>
               </View>
 
-              <View className="flex-1">
-                <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+              {/* User Info */}
+              <View className="mb-3">
+                <Text className={`text-xl font-bold mb-1 ${isDark ? 'text-white' : 'text-black'}`}>
                   {displayName}
                 </Text>
-                <Text className={isDark ? 'text-gray-400' : 'text-gray-500'}>
+                <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                   {displayEmail}
                 </Text>
-                {/* Role badge */}
-                <View className="flex-row mt-2">
-                  <View
-                    className={`rounded-full px-3 py-1 ${
-                      isAdmin
-                        ? 'bg-purple-500/20'
-                        : isAgent
-                        ? 'bg-blue-500/20'
-                        : isDark
-                        ? 'bg-[#2a2a2a]'
-                        : 'bg-gray-100'
-                    }`}>
-                    <Text
-                      className={`text-xs font-semibold ${
-                        isAdmin
-                          ? 'text-purple-500'
-                          : isAgent
-                          ? 'text-blue-500'
-                          : isDark
-                          ? 'text-gray-400'
-                          : 'text-gray-600'
-                      }`}>
-                      {roleBadgeText}
-                    </Text>
-                  </View>
-                </View>
               </View>
 
-              <View
-                className={`h-10 w-10 items-center justify-center rounded-full ${
-                  isDark ? 'bg-[#2a2a2a]' : 'bg-gray-100'
-                }`}>
-                <Edit3 color={isDark ? '#fff' : '#000'} size={16} />
+              {/* Role Badge & Edit Icon Row */}
+              <View className="flex-row items-center justify-between">
+                <View
+                  className={`rounded-full px-4 py-2 ${
+                    isAdmin
+                      ? 'bg-purple-500/20'
+                      : isAgent
+                      ? 'bg-blue-500/20'
+                      : isDark
+                      ? 'bg-[#2a2a2a]'
+                      : 'bg-gray-100'
+                  }`}>
+                  <Text
+                    className={`text-xs font-bold ${
+                      isAdmin
+                        ? 'text-purple-500'
+                        : isAgent
+                        ? 'text-blue-500'
+                        : isDark
+                        ? 'text-gray-400'
+                        : 'text-gray-600'
+                    }`}>
+                    {roleBadgeText}
+                  </Text>
+                </View>
+
+                {/* Edit Icon */}
+                <View
+                  className={`h-9 w-9 items-center justify-center rounded-full ${
+                    isDark ? 'bg-[#2a2a2a]' : 'bg-gray-100'
+                  }`}>
+                  <Edit3 color={isDark ? '#fff' : '#000'} size={16} />
+                </View>
               </View>
             </View>
           </TouchableOpacity>
@@ -286,33 +296,6 @@ export default function SettingsScreen() {
             />
           </View>
         )}
-
-        {/* Account Section */}
-        <View className="mb-6">
-          <SectionHeader title="Account" />
-          <SettingItem
-            icon={<User color={isDark ? '#000' : '#fff'} size={20} />}
-            title="Personal Information"
-            subtitle="Name, phone, profile photo"
-            onPress={handleEditProfile}
-          />
-          {isAgent && (
-            <>
-              <SettingItem
-                icon={<Briefcase color={isDark ? '#000' : '#fff'} size={20} />}
-                title="Professional Details"
-                subtitle="Bio, experience, services & rates"
-                onPress={() => router.push('/edit-agent-profile' as any)}
-              />
-              <SettingItem
-                icon={<Star color={isDark ? '#000' : '#fff'} size={20} />}
-                title="Availability & Specialties"
-                subtitle="Manage availability, specialties & languages"
-                onPress={() => router.push('/edit-agent-profile' as any)}
-              />
-            </>
-          )}
-        </View>
 
         {/* Preferences Section */}
         <View className="mb-6">

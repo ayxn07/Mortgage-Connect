@@ -85,3 +85,23 @@ export type {
   CreateChatInput,
   ChatListItem,
 } from './chat';
+
+// AI Chat
+export type {
+  CalculatorType,
+  AIInteractionType,
+  AIOptionItem,
+  AIInputConfig,
+  AIResultBreakdownItem,
+  AIResultData,
+  AIInteraction,
+  AIMessageSender,
+  AIMessageType,
+  AIMessage,
+  AICalculatorFlow,
+  CalculatorStepDef,
+  AIConversation,
+  AIChatRequest,
+  AIChatResponse,
+  FeatureFlags,
+} from './aiChat';

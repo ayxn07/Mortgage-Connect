@@ -17,22 +17,21 @@ import Animated, {
   FadeInUp,
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { calculateEMI } from '@/src/utils/helpers';
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 const ACCENT = '#ec4899'; // pink — matches hub card
 
 // =====================================================================
-// Formatters
+// Formatters (with NaN/Infinity guards)
 // =====================================================================
 function fmtAED(v: number): string {
+  if (!isFinite(v) || isNaN(v)) return 'AED 0';
   return `AED ${v.toLocaleString('en-US')}`;
 }
 function fmtShort(v: number): string {
+  if (!isFinite(v) || isNaN(v)) return 'AED 0';
   if (v >= 1_000_000) return `AED ${(v / 1_000_000).toFixed(2)}M`;
   if (v >= 1_000) return `AED ${(v / 1_000).toFixed(0)}K`;
   return `AED ${v.toLocaleString('en-US')}`;
@@ -62,7 +61,11 @@ function NumInput({
   const [focused, setFocused] = useState(false);
 
   const handleChange = (t: string) => {
-    const cleaned = t.replace(/[^0-9.]/g, '');
+    let cleaned = t.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    if (parts.length > 2) {
+      cleaned = parts[0] + '.' + parts.slice(1).join('');
+    }
     setText(cleaned);
     const p = parseFloat(cleaned);
     if (!isNaN(p)) onChange(p);
@@ -199,6 +202,8 @@ const DEFAULT_SCENARIOS: Scenario[] = [
   { id: 'c', label: 'Scenario C', rate: 4.99, tenure: 20 },
 ];
 
+const SCENARIO_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+
 // =====================================================================
 // Scenario Card (editable)
 // =====================================================================
@@ -222,16 +227,16 @@ function ScenarioCard({
     transform: [{ scale: scale.value }],
   }));
 
-  const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
-  const color = colors[index % colors.length];
+  const color = SCENARIO_COLORS[index % SCENARIO_COLORS.length];
 
   return (
     <Animated.View
-      entering={FadeInDown.delay(100 + index * 80).duration(400)}
-      style={animStyle}
-      className={`rounded-2xl p-4 mb-3 border ${
-        isDark ? 'bg-[#111] border-[#1e1e1e]' : 'bg-white border-gray-100'
-      }`}>
+      entering={FadeInDown.delay(100 + index * 80).duration(400)}>
+      <Animated.View
+        style={animStyle}
+        className={`rounded-2xl p-4 mb-3 border ${
+          isDark ? 'bg-[#111] border-[#1e1e1e]' : 'bg-white border-gray-100'
+        }`}>
       {/* Header */}
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-row items-center">
@@ -259,7 +264,7 @@ function ScenarioCard({
           </Text>
           <ScenarioInput
             value={scenario.rate}
-            onChange={(v) => onUpdate({ ...scenario, rate: v })}
+            onChange={(v) => onUpdate({ ...scenario, rate: Math.max(0, v) })}
             isDark={isDark}
             suffix="%"
           />
@@ -270,12 +275,13 @@ function ScenarioCard({
           </Text>
           <ScenarioInput
             value={scenario.tenure}
-            onChange={(v) => onUpdate({ ...scenario, tenure: Math.min(30, Math.max(1, Math.round(v))) })}
+            onChange={(v) => onUpdate({ ...scenario, tenure: Math.min(25, Math.max(1, Math.round(v))) })}
             isDark={isDark}
             suffix="yr"
           />
         </View>
       </View>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -298,7 +304,11 @@ function ScenarioInput({
   const [focused, setFocused] = useState(false);
 
   const handleChange = (t: string) => {
-    const cleaned = t.replace(/[^0-9.]/g, '');
+    let cleaned = t.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    if (parts.length > 2) {
+      cleaned = parts[0] + '.' + parts.slice(1).join('');
+    }
     setText(cleaned);
     const p = parseFloat(cleaned);
     if (!isNaN(p)) onChange(p);
@@ -341,13 +351,11 @@ function CompareRow({
   values,
   isDark,
   highlight,
-  isCurrency,
 }: {
   label: string;
   values: string[];
   isDark: boolean;
   highlight?: number; // index of the best value
-  isCurrency?: boolean;
 }) {
   return (
     <View className="flex-row items-center py-3">
@@ -388,32 +396,76 @@ export default function CalcCompareScreen() {
   const downPayment = Math.round((propertyPrice * dpPercent) / 100);
   const loanAmount = Math.max(0, propertyPrice - downPayment);
 
-  // Calculate EMI for each scenario
+  // Calculate EMI for each scenario — with edge case guards
   const results = useMemo(() => {
+    if (loanAmount <= 0) {
+      return scenarios.map((s) => ({
+        ...s,
+        emi: 0,
+        totalPayment: 0,
+        totalInterest: 0,
+        interestPercent: 0,
+        effectiveRate: 0,
+      }));
+    }
+
     return scenarios.map((s) => {
+      // Guard: zero rate, zero tenure
+      if (s.tenure <= 0) {
+        return {
+          ...s,
+          emi: 0,
+          totalPayment: 0,
+          totalInterest: 0,
+          interestPercent: 0,
+          effectiveRate: 0,
+        };
+      }
+
       const emi = calculateEMI({
         principal: loanAmount,
-        annualRate: s.rate,
+        annualRate: Math.max(0, s.rate),
         years: s.tenure,
       });
+
+      const totalInterest = emi.totalInterest;
+      const interestPercent = loanAmount > 0
+        ? Math.round((totalInterest / loanAmount) * 100)
+        : 0;
+
+      // Effective interest rate = (Total Interest / Principal) / Tenure × 100
+      const effectiveRate = loanAmount > 0 && s.tenure > 0
+        ? ((totalInterest / loanAmount) / s.tenure * 100).toFixed(2)
+        : '0.00';
+
       return {
         ...s,
         emi: emi.monthlyInstallment,
         totalPayment: emi.totalPayment,
-        totalInterest: emi.totalInterest,
-        interestPercent: loanAmount > 0 ? Math.round((emi.totalInterest / loanAmount) * 100) : 0,
+        totalInterest,
+        interestPercent,
+        effectiveRate,
       };
     });
   }, [scenarios, loanAmount]);
 
-  // Find best (lowest) values
-  const bestEMI = results.length > 0 ? Math.min(...results.map((r) => r.emi)) : 0;
-  const bestTotal = results.length > 0 ? Math.min(...results.map((r) => r.totalPayment)) : 0;
-  const bestInterest = results.length > 0 ? Math.min(...results.map((r) => r.totalInterest)) : 0;
+  // Find best (lowest) values — only compare valid results
+  const validResults = results.filter((r) => r.emi > 0);
+  const bestEMI = validResults.length > 0 ? Math.min(...validResults.map((r) => r.emi)) : 0;
+  const bestTotal = validResults.length > 0 ? Math.min(...validResults.map((r) => r.totalPayment)) : 0;
+  const bestInterest = validResults.length > 0 ? Math.min(...validResults.map((r) => r.totalInterest)) : 0;
 
-  const bestEMIIdx = results.findIndex((r) => r.emi === bestEMI);
-  const bestTotalIdx = results.findIndex((r) => r.totalPayment === bestTotal);
-  const bestInterestIdx = results.findIndex((r) => r.totalInterest === bestInterest);
+  const bestEMIIdx = results.findIndex((r) => r.emi === bestEMI && r.emi > 0);
+  const bestTotalIdx = results.findIndex((r) => r.totalPayment === bestTotal && r.totalPayment > 0);
+  const bestInterestIdx = results.findIndex((r) => r.totalInterest === bestInterest && r.totalInterest > 0);
+
+  // Savings compared to worst
+  const worstTotal = validResults.length > 0 ? Math.max(...validResults.map((r) => r.totalPayment)) : 0;
+  const maxSavings = worstTotal - bestTotal;
+
+  // Monthly savings (best vs worst)
+  const worstEMI = validResults.length > 0 ? Math.max(...validResults.map((r) => r.emi)) : 0;
+  const monthlySavings = worstEMI - bestEMI;
 
   // Add scenario
   const addScenario = () => {
@@ -430,7 +482,6 @@ export default function CalcCompareScreen() {
   const removeScenario = (id: string) => {
     setScenarios((prev) => {
       const filtered = prev.filter((s) => s.id !== id);
-      // Re-label
       return filtered.map((s, i) => ({
         ...s,
         label: `Scenario ${String.fromCharCode(65 + i)}`,
@@ -443,9 +494,7 @@ export default function CalcCompareScreen() {
     setScenarios((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
   };
 
-  // Savings compared to worst
-  const worstTotal = results.length > 0 ? Math.max(...results.map((r) => r.totalPayment)) : 0;
-  const maxSavings = worstTotal - bestTotal;
+  const hasValidResults = validResults.length >= 2;
 
   return (
     <SafeAreaView className={`flex-1 ${isDark ? 'bg-black' : 'bg-gray-50'}`}>
@@ -490,7 +539,7 @@ export default function CalcCompareScreen() {
               <NumInput
                 label="Property Price"
                 value={propertyPrice}
-                onChange={setPropertyPrice}
+                onChange={(v) => setPropertyPrice(Math.max(0, v))}
                 isDark={isDark}
                 prefix="AED"
               />
@@ -510,7 +559,7 @@ export default function CalcCompareScreen() {
                 <NumInput
                   label="Down Payment"
                   value={dpPercent}
-                  onChange={(v) => setDpPercent(Math.min(80, Math.max(0, v)))}
+                  onChange={(v) => setDpPercent(Math.min(99, Math.max(0, v)))}
                   isDark={isDark}
                   suffix="%"
                   hint={`Loan amount: ${fmtShort(loanAmount)}`}
@@ -563,8 +612,25 @@ export default function CalcCompareScreen() {
               ))}
             </Animated.View>
 
+            {/* Warning if loan is 0 */}
+            {loanAmount <= 0 && (
+              <Animated.View entering={FadeInUp.delay(300).duration(400)}>
+                <View
+                  className={`rounded-2xl p-4 mb-4 border ${
+                    isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-amber-50 border-amber-200'
+                  }`}>
+                  <View className="flex-row items-center">
+                    <Feather name="alert-triangle" size={14} color="#f59e0b" />
+                    <Text className={`ml-2 text-sm font-semibold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                      Loan amount is zero — adjust property price or down payment
+                    </Text>
+                  </View>
+                </View>
+              </Animated.View>
+            )}
+
             {/* Results */}
-            {results.length >= 2 && (
+            {hasValidResults && (
               <Animated.View entering={FadeInUp.delay(300).duration(400)}>
                 <View className="mb-3 mt-2">
                   <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>
@@ -573,37 +639,47 @@ export default function CalcCompareScreen() {
                 </View>
 
                 {/* Best Deal Hero */}
-                <View
-                  className={`rounded-2xl p-5 mb-4 border ${
-                    isDark ? 'bg-white border-white' : 'bg-black border-black'
-                  }`}>
-                  <View className="flex-row items-center mb-2">
-                    <Feather name="award" size={16} color={isDark ? '#000' : '#fff'} />
-                    <Text className={`ml-2 text-xs font-semibold ${isDark ? 'text-black/60' : 'text-white/60'}`}>
-                      Best Deal — {results[bestTotalIdx]?.label}
-                    </Text>
-                  </View>
-                  <Text className={`text-2xl font-bold ${isDark ? 'text-black' : 'text-white'}`}>
-                    {fmtAED(results[bestTotalIdx]?.emi ?? 0)}/mo
-                  </Text>
-                  <Text className={`text-[10px] mt-1 ${isDark ? 'text-black/40' : 'text-white/40'}`}>
-                    {results[bestTotalIdx]?.rate}% rate · {results[bestTotalIdx]?.tenure} years · Total: {fmtShort(results[bestTotalIdx]?.totalPayment ?? 0)}
-                  </Text>
-                  {maxSavings > 0 && (
-                    <View className="flex-row items-center mt-3">
-                      <View
-                        className="px-2.5 py-1 rounded-full"
-                        style={{ backgroundColor: isDark ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.2)' }}>
-                        <Text className="text-xs font-bold text-emerald-500">
-                          Save {fmtShort(maxSavings)}
-                        </Text>
-                      </View>
-                      <Text className={`text-[10px] ml-2 ${isDark ? 'text-black/40' : 'text-white/40'}`}>
-                        vs most expensive option
+                {bestTotalIdx >= 0 && (
+                  <View
+                    className={`rounded-2xl p-5 mb-4 border ${
+                      isDark ? 'bg-white border-white' : 'bg-black border-black'
+                    }`}>
+                    <View className="flex-row items-center mb-2">
+                      <Feather name="award" size={16} color={isDark ? '#000' : '#fff'} />
+                      <Text className={`ml-2 text-xs font-semibold ${isDark ? 'text-black/60' : 'text-white/60'}`}>
+                        Best Deal — {results[bestTotalIdx].label}
                       </Text>
                     </View>
-                  )}
-                </View>
+                    <Text className={`text-2xl font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+                      {fmtAED(results[bestTotalIdx].emi)}/mo
+                    </Text>
+                    <Text className={`text-[10px] mt-1 ${isDark ? 'text-black/40' : 'text-white/40'}`}>
+                      {results[bestTotalIdx].rate}% rate · {results[bestTotalIdx].tenure} years · Total: {fmtShort(results[bestTotalIdx].totalPayment)}
+                    </Text>
+
+                    {/* Savings pills */}
+                    <View className="flex-row flex-wrap gap-2 mt-3">
+                      {maxSavings > 0 && (
+                        <View
+                          className="px-2.5 py-1 rounded-full"
+                          style={{ backgroundColor: isDark ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.2)' }}>
+                          <Text className="text-xs font-bold text-emerald-500">
+                            Save {fmtShort(maxSavings)} total
+                          </Text>
+                        </View>
+                      )}
+                      {monthlySavings > 0 && (
+                        <View
+                          className="px-2.5 py-1 rounded-full"
+                          style={{ backgroundColor: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.2)' }}>
+                          <Text className="text-xs font-bold text-indigo-500">
+                            {fmtAED(monthlySavings)}/mo less
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                )}
 
                 {/* Comparison Table */}
                 <View
@@ -617,20 +693,17 @@ export default function CalcCompareScreen() {
                         Metric
                       </Text>
                     </View>
-                    {results.map((r, i) => {
-                      const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
-                      return (
-                        <View key={r.id} className="flex-1 items-center">
-                          <View
-                            className="w-6 h-6 rounded-md items-center justify-center mb-1"
-                            style={{ backgroundColor: `${colors[i % colors.length]}20` }}>
-                            <Text style={{ color: colors[i % colors.length], fontSize: 10, fontWeight: '800' }}>
-                              {String.fromCharCode(65 + i)}
-                            </Text>
-                          </View>
+                    {results.map((r, i) => (
+                      <View key={r.id} className="flex-1 items-center">
+                        <View
+                          className="w-6 h-6 rounded-md items-center justify-center mb-1"
+                          style={{ backgroundColor: `${SCENARIO_COLORS[i % SCENARIO_COLORS.length]}20` }}>
+                          <Text style={{ color: SCENARIO_COLORS[i % SCENARIO_COLORS.length], fontSize: 10, fontWeight: '800' }}>
+                            {String.fromCharCode(65 + i)}
+                          </Text>
                         </View>
-                      );
-                    })}
+                      </View>
+                    ))}
                   </View>
 
                   <View className={`h-px ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'}`} />
@@ -654,48 +727,54 @@ export default function CalcCompareScreen() {
                   {/* Monthly EMI */}
                   <CompareRow
                     label="Monthly EMI"
-                    values={results.map((r) => fmtShort(r.emi))}
+                    values={results.map((r) => r.emi > 0 ? fmtShort(r.emi) : '-')}
                     isDark={isDark}
                     highlight={bestEMIIdx}
-                    isCurrency
                   />
                   <View className={`h-px ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'}`} />
 
                   {/* Total Interest */}
                   <CompareRow
                     label="Total Interest"
-                    values={results.map((r) => fmtShort(r.totalInterest))}
+                    values={results.map((r) => r.totalInterest > 0 ? fmtShort(r.totalInterest) : '-')}
                     isDark={isDark}
                     highlight={bestInterestIdx}
-                    isCurrency
                   />
                   <View className={`h-px ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'}`} />
 
                   {/* Total Payment */}
                   <CompareRow
                     label="Total Payment"
-                    values={results.map((r) => fmtShort(r.totalPayment))}
+                    values={results.map((r) => r.totalPayment > 0 ? fmtShort(r.totalPayment) : '-')}
                     isDark={isDark}
                     highlight={bestTotalIdx}
-                    isCurrency
                   />
                   <View className={`h-px ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'}`} />
 
                   {/* Interest % of Loan */}
                   <CompareRow
                     label="Interest/Loan"
-                    values={results.map((r) => `${r.interestPercent}%`)}
+                    values={results.map((r) => r.emi > 0 ? `${r.interestPercent}%` : '-')}
                     isDark={isDark}
                     highlight={bestInterestIdx}
+                  />
+                  <View className={`h-px ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'}`} />
+
+                  {/* Effective Rate */}
+                  <CompareRow
+                    label="Eff. Rate/yr"
+                    values={results.map((r) => r.emi > 0 ? `${r.effectiveRate}%` : '-')}
+                    isDark={isDark}
                   />
                 </View>
 
                 {/* Per-scenario detail cards */}
                 <View className="flex-row flex-wrap gap-3 mb-4">
                   {results.map((r, i) => {
-                    const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
-                    const color = colors[i % colors.length];
+                    const color = SCENARIO_COLORS[i % SCENARIO_COLORS.length];
                     const isBest = i === bestTotalIdx;
+
+                    if (r.emi <= 0) return null;
 
                     return (
                       <Animated.View
@@ -792,11 +871,9 @@ export default function CalcCompareScreen() {
                   </View>
 
                   {results.map((r, i) => {
-                    const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
-                    const color = colors[i % colors.length];
-                    const principalPercent = r.totalPayment > 0
-                      ? Math.round((loanAmount / r.totalPayment) * 100)
-                      : 0;
+                    if (r.emi <= 0 || r.totalPayment <= 0) return null;
+                    const color = SCENARIO_COLORS[i % SCENARIO_COLORS.length];
+                    const principalPercent = Math.round((loanAmount / r.totalPayment) * 100);
                     const interestPct = 100 - principalPercent;
 
                     return (
@@ -867,7 +944,7 @@ export default function CalcCompareScreen() {
                 <View className="flex-row items-start mt-5 mb-2">
                   <Feather name="info" size={11} color={isDark ? '#444' : '#bbb'} style={{ marginTop: 2 }} />
                   <Text className={`ml-2 text-[11px] leading-4 flex-1 ${isDark ? 'text-gray-700' : 'text-gray-400'}`}>
-                    Rates shown are for comparison only. Actual rates depend on your bank, credit profile, and market conditions.
+                    Rates shown are for comparison only. Actual rates depend on your bank, credit profile, and market conditions. Tenure capped at 25 years per UAE Central Bank.
                   </Text>
                 </View>
               </Animated.View>

@@ -2,11 +2,7 @@ import React, { useEffect } from 'react';
 import { View, TouchableOpacity, StyleSheet, Dimensions, Text } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from 'nativewind';
 import * as Haptics from 'expo-haptics';
@@ -25,10 +21,11 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
   const insets = useSafeAreaInsets();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const totalUnread = useChatStore((s) => s.totalUnread);
+
   const tabCount = state.routes.length;
   const tabWidth = (width - 72) / tabCount;
-  const totalUnread = useChatStore((s) => s.totalUnread);
-  
+
   const translateX = useSharedValue(0);
 
   useEffect(() => {
@@ -42,20 +39,21 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
   }));
 
   return (
-    <View style={[
-      styles.container, 
-      { 
-        bottom: insets.bottom + 20,
-        backgroundColor: isDark ? '#000' : '#fff',
-        borderColor: isDark ? '#2a2a2a' : '#e5e5e5',
-      }
-    ]}>
+    <View
+      style={[
+        styles.container,
+        {
+          bottom: insets.bottom + 20,
+          backgroundColor: isDark ? '#000' : '#fff',
+          borderColor: isDark ? '#2a2a2a' : '#e5e5e5',
+        },
+      ]}>
       {/* Animated Indicator */}
       <Animated.View
         style={[
           styles.indicator,
-          { 
-            width: tabWidth - 8,
+          {
+            width: tabWidth - 8,  
             backgroundColor: isDark ? '#fff' : '#000',
           },
           indicatorStyle,
@@ -63,10 +61,10 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
       />
 
       {/* Tab Buttons */}
-      {state.routes.map((route, index) => {
+      {state.routes.map((route) => {
         const { options } = descriptors[route.key];
         const label = options.tabBarLabel ?? options.title ?? route.name;
-        const isFocused = state.index === index;
+        const isFocused = state.index === state.routes.findIndex((r) => r.key === route.key);
 
         const onPress = () => {
           const event = navigation.emit({
@@ -154,34 +152,36 @@ function TabButton({
           <Feather
             name={iconName as any}
             size={24}
-            color={isFocused ? (isDark ? '#000' : '#fff') : (isDark ? '#fff' : '#000')}
+            color={isFocused ? (isDark ? '#000' : '#fff') : isDark ? '#fff' : '#000'}
           />
           {badge > 0 && !isFocused && (
-            <View style={{
-              position: 'absolute',
-              top: -4,
-              right: -8,
-              backgroundColor: '#ef4444',
-              borderRadius: 8,
-              minWidth: 16,
-              height: 16,
-              alignItems: 'center',
-              justifyContent: 'center',
-              paddingHorizontal: 3,
-            }}>
+            <View
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -8,
+                backgroundColor: '#ef4444',
+                borderRadius: 8,
+                minWidth: 16,
+                height: 16,
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingHorizontal: 3,
+              }}>
               <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700' }}>
                 {badge > 99 ? '99+' : badge}
               </Text>
             </View>
           )}
         </Animated.View>
-        <Animated.Text style={[
-          styles.label, 
-          animatedTextStyle,
-          { 
-            color: isFocused ? (isDark ? '#000' : '#fff') : (isDark ? '#fff' : '#000')
-          }
-        ]}>
+        <Animated.Text
+          style={[
+            styles.label,
+            animatedTextStyle,
+            {
+              color: isFocused ? (isDark ? '#000' : '#fff') : isDark ? '#fff' : '#000',
+            },
+          ]}>
           {label}
         </Animated.Text>
       </Animated.View>
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    
+
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,

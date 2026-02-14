@@ -3,7 +3,17 @@
  * This runs once on first app load if no agents exist.
  * Creates 5 realistic mortgage agent profiles with reviews.
  */
-import { firestore } from './firebase';
+import { db } from './firebase';
+import {
+  collection,
+  doc,
+  getDocs,
+  query,
+  where,
+  limit,
+  writeBatch,
+  serverTimestamp,
+} from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SEED_KEY = 'mortgage-connect-agents-seeded';
@@ -268,11 +278,12 @@ export async function seedTestAgents(): Promise<boolean> {
     }
 
     // Check if agents already exist in Firestore
-    const existingAgents = await firestore()
-      .collection('users')
-      .where('role', '==', 'agent')
-      .limit(1)
-      .get();
+    const q = query(
+      collection(db, 'users'),
+      where('role', '==', 'agent'),
+      limit(1)
+    );
+    const existingAgents = await getDocs(q);
 
     if (!existingAgents.empty) {
       console.log('[Seed] Agents already exist in Firestore, marking as seeded.');
@@ -282,19 +293,19 @@ export async function seedTestAgents(): Promise<boolean> {
 
     console.log('[Seed] Seeding test agents...');
 
-    const batch = firestore().batch();
+    const batch = writeBatch(db);
     const agentIds: string[] = [];
 
     // Create agent documents
     for (const agentData of TEST_AGENTS) {
-      const agentRef = firestore().collection('users').doc();
+      const agentRef = doc(collection(db, 'users'));
       agentIds.push(agentRef.id);
 
       batch.set(agentRef, {
         ...agentData,
         uid: agentRef.id,
-        createdAt: firestore.FieldValue.serverTimestamp(),
-        updatedAt: firestore.FieldValue.serverTimestamp(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
     }
 
@@ -302,10 +313,10 @@ export async function seedTestAgents(): Promise<boolean> {
     console.log(`[Seed] Created ${agentIds.length} test agents.`);
 
     // Create review documents in a second batch
-    const reviewBatch = firestore().batch();
+    const reviewBatch = writeBatch(db);
 
     for (const review of TEST_REVIEWS) {
-      const reviewRef = firestore().collection('reviews').doc();
+      const reviewRef = doc(collection(db, 'reviews'));
       reviewBatch.set(reviewRef, {
         reviewId: reviewRef.id,
         agentId: agentIds[review.agentIndex],
@@ -313,7 +324,7 @@ export async function seedTestAgents(): Promise<boolean> {
         userName: review.userName,
         rating: review.rating,
         comment: review.comment,
-        createdAt: firestore.FieldValue.serverTimestamp(),
+        createdAt: serverTimestamp(),
       });
     }
 

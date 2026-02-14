@@ -32,7 +32,33 @@ export {
 // Helpers (mortgage calculations)
 export {
   calculateEMI,
+  calculatePreciseEMI,
   checkEligibility,
   calculateDownPaymentPercent,
   calculateLTV,
+  getMinDownPaymentPercent,
+  calculateUpfrontCosts,
+  calculateDBR,
+  reverseEMIToLoan,
+  generateAmortizationSchedule,
+  getYearlySummary,
+  calculatePrepaymentSavings,
+  calculateRentVsBuy,
+} from './helpers';
+
+// Helper types (re-export for convenience)
+export type {
+  Emirate,
+  PropertyReadinessType,
+  UpfrontCostInput,
+  UpfrontCostResult,
+  DBRInput,
+  DBRResult,
+  AmortizationEntry,
+  AmortizationYearlySummary,
+  PrepaymentInput,
+  PrepaymentResult,
+  RentVsBuyInput,
+  RentVsBuyYearlySnapshot,
+  RentVsBuyResult,
 } from './helpers';

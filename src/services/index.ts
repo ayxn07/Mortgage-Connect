@@ -6,7 +6,7 @@
  */
 
 // Firebase core
-export { auth, firestore, storage } from './firebase';
+export { auth, db, storage } from './firebase';
 
 // Auth service
 export {
@@ -71,3 +71,14 @@ export {
   toggleMuteChat,
   deleteChat,
 } from './chat';
+
+// AI Chat service
+export {
+  createWelcomeMessages,
+  detectCalculatorIntent,
+  startCalculatorFlow,
+  continueCalculatorFlow,
+  callAIModel,
+  processTextForQuickActions,
+  generateMessageId,
+} from './aiChat';

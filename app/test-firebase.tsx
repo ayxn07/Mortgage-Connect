@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { firestore } from '@/src/services/firebase';
+import { db } from '@/src/services/firebase';
+import { collection, doc, getDoc } from '@react-native-firebase/firestore';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
 export default function TestFirebase() {
@@ -11,10 +12,7 @@ export default function TestFirebase() {
     const testConnection = async () => {
       try {
         // Try to access Firestore
-        await firestore()
-          .collection('test')
-          .doc('connection')
-          .get();
+        await getDoc(doc(db, 'test', 'connection'));
         
         setStatus('success');
         setMessage('✅ Firebase connected successfully!');

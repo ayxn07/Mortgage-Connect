@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   Pressable,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -14,12 +13,11 @@ import Animated, {
   FadeIn,
   useSharedValue,
   useAnimatedStyle,
-  withTiming,
   withSpring,
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
+import { useFeatureFlags } from '@/src/hooks/useFeatureFlags';
 
-const { width } = Dimensions.get('window');
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 // =====================================================================
@@ -48,6 +46,16 @@ const tools: ToolItem[] = [
     badge: 'Popular',
   },
   {
+    id: 'ai-assistant',
+    title: 'AI Assistant',
+    subtitle: 'Talk to AI mortgage expert',
+    description: 'Get instant answers about UAE mortgages, eligibility, and personalized advice from our AI-powered assistant.',
+    icon: 'cpu',
+    route: '/ai-assistant',
+    gradient: '#8b5cf6', // violet
+    badge: 'BETA',
+  },
+  {
     id: 'afford',
     title: 'Affordability',
     subtitle: 'How much can you borrow?',
@@ -73,6 +81,26 @@ const tools: ToolItem[] = [
     icon: 'bar-chart-2',
     route: '/calc-compare',
     gradient: '#ec4899', // pink
+  },
+  {
+    id: 'prepay',
+    title: 'Prepayment',
+    subtitle: 'Early settlement savings',
+    description: 'See how lump-sum or extra monthly payments reduce your tenure and total interest paid.',
+    icon: 'zap',
+    route: '/calc-prepay',
+    gradient: '#0ea5e9', // sky blue
+    badge: 'New',
+  },
+  {
+    id: 'rentvsbuy',
+    title: 'Rent vs Buy',
+    subtitle: 'Which option saves more?',
+    description: 'Compare the total cost of renting vs buying over time, factoring in equity, appreciation, and fees.',
+    icon: 'home',
+    route: '/calc-rentvsbuy',
+    gradient: '#14b8a6', // teal
+    badge: 'New',
   },
 ];
 
@@ -134,14 +162,15 @@ function ToolCard({
   return (
     <Animated.View
       entering={FadeInDown.delay(150 + index * 100).duration(400)}
-      style={[animStyle, { width: '100%' }]}>
-      <AnimatedPressable
-        onPress={() => router.push(tool.route as any)}
-        onPressIn={() => { scale.value = withSpring(0.96, { damping: 15 }); }}
-        onPressOut={() => { scale.value = withSpring(1, { damping: 15 }); }}
-        className={`rounded-3xl border overflow-hidden p-6 ${
-          isDark ? 'bg-[#111] border-[#222]' : 'bg-white border-gray-100'
-        }`}>
+      style={{ width: '100%' }}>
+      <Animated.View style={animStyle}>
+        <AnimatedPressable
+          onPress={() => router.push(tool.route as any)}
+          onPressIn={() => { scale.value = withSpring(0.96, { damping: 15 }); }}
+          onPressOut={() => { scale.value = withSpring(1, { damping: 15 }); }}
+          className={`rounded-3xl border overflow-hidden p-6 ${
+            isDark ? 'bg-[#111] border-[#222]' : 'bg-white border-gray-100'
+          }`}>
 
         {/* Decorative corner circle */}
         <View className="absolute -right-12 -top-12 opacity-[0.04]">
@@ -200,6 +229,7 @@ function ToolCard({
           <Feather name="arrow-right" size={12} color={tool.gradient} />
         </View>
       </AnimatedPressable>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -211,6 +241,15 @@ export default function CalculatorScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const { flags } = useFeatureFlags();
+
+  // Filter tools based on feature flags
+  const visibleTools = tools.filter((tool) => {
+    if (tool.id === 'ai-assistant') {
+      return flags.aiAssistantEnabled;
+    }
+    return true;
+  });
 
   return (
     <SafeAreaView className={`flex-1 ${isDark ? 'bg-black' : 'bg-gray-50'}`}>
@@ -263,12 +302,12 @@ export default function CalculatorScreen() {
 
         {/* Hero Card (EMI Calculator - full width) */}
         <View className="px-6 mb-3">
-          <ToolCard tool={tools[0]} index={0} isDark={isDark} />
+          <ToolCard tool={visibleTools[0]} index={0} isDark={isDark} />
         </View>
 
         {/* All other cards - full width */}
         <View className="px-6">
-          {tools.slice(1).map((tool, i) => (
+          {visibleTools.slice(1).map((tool, i) => (
             <View key={tool.id} className="mb-3">
               <ToolCard tool={tool} index={i + 1} isDark={isDark} />
             </View>

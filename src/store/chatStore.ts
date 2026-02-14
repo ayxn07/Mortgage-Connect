@@ -396,13 +396,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
       delete presenceUnsubs[key];
     }
 
-    // Set user offline and clear typing
+    // Set user offline and clear typing (best-effort, ignore errors)
+    // Note: This may fail if user is already logged out, which is fine
     try {
       await updateOnlineStatus(userId, false);
+    } catch (err) {
+      // Ignore - user may already be logged out
+    }
+    
+    try {
       await setTypingStatus(userId, null);
+    } catch (err) {
+      // Ignore - user may already be logged out
+    }
+    
+    try {
       await setCurrentChat(userId, null);
-    } catch {
-      // Best-effort cleanup, don't throw
+    } catch (err) {
+      // Ignore - user may already be logged out
     }
 
     // Reset state

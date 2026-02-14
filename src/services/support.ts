@@ -1,4 +1,14 @@
-import { firestore } from './firebase';
+import { db } from './firebase';
+import {
+  collection,
+  doc,
+  addDoc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  serverTimestamp,
+} from '@react-native-firebase/firestore';
 import type { SupportQuery, CreateSupportQueryInput } from '../types';
 
 /**
@@ -8,15 +18,13 @@ export async function createSupportQuery(
   uid: string,
   input: CreateSupportQueryInput
 ): Promise<string> {
-  const docRef = await firestore()
-    .collection('supportQueries')
-    .add({
-      uid,
-      ...input,
-      status: 'open',
-      createdAt: firestore.FieldValue.serverTimestamp(),
-      updatedAt: firestore.FieldValue.serverTimestamp(),
-    });
+  const docRef = await addDoc(collection(db, 'supportQueries'), {
+    uid,
+    ...input,
+    status: 'open',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
   return docRef.id;
 }
 
@@ -26,21 +34,22 @@ export async function createSupportQuery(
 export async function fetchUserSupportQueries(uid: string): Promise<SupportQuery[]> {
   try {
     console.log('Fetching support queries from Firestore for uid:', uid);
-    const snapshot = await firestore()
-      .collection('supportQueries')
-      .where('uid', '==', uid)
-      .get();
+    const q = query(
+      collection(db, 'supportQueries'),
+      where('uid', '==', uid)
+    );
+    const snapshot = await getDocs(q);
 
     console.log('Firestore query completed. Document count:', snapshot.size);
     
-    const queries = snapshot.docs.map((doc) => {
-      const data = doc.data();
-      console.log('Document data:', { id: doc.id, ...data });
-      return { ...data, queryId: doc.id } as SupportQuery;
+    const queries = snapshot.docs.map((d: any) => {
+      const data = d.data();
+      console.log('Document data:', { id: d.id, ...data });
+      return { ...data, queryId: d.id } as SupportQuery;
     });
     
     // Sort by createdAt in memory to avoid needing a composite index
-    queries.sort((a, b) => {
+    queries.sort((a: any, b: any) => {
       const aTime = a.createdAt?.toMillis?.() || 0;
       const bTime = b.createdAt?.toMillis?.() || 0;
       return bTime - aTime; // desc order
@@ -57,7 +66,7 @@ export async function fetchUserSupportQueries(uid: string): Promise<SupportQuery
  * Fetch a single support query by ID.
  */
 export async function fetchSupportQueryById(queryId: string): Promise<SupportQuery | null> {
-  const doc = await firestore().collection('supportQueries').doc(queryId).get();
-  if (!doc.exists) return null;
-  return { ...doc.data(), queryId: doc.id } as SupportQuery;
+  const snap = await getDoc(doc(db, 'supportQueries', queryId));
+  if (!snap.exists()) return null;
+  return { ...snap.data(), queryId: snap.id } as SupportQuery;
 }

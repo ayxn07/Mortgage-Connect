@@ -106,8 +106,9 @@ export default function UsersPage() {
         `${selectedUser.displayName} is now ${newRole === "agent" ? "an" : "a"} ${newRole}`
       );
       setShowRoleDialog(false);
-    } catch (err) {
-      toast.error("Failed to update role");
+    } catch (err: any) {
+      console.error("Role update error:", err);
+      toast.error(err?.message || "Failed to update role");
     } finally {
       setActionLoading(false);
     }

@@ -8,9 +8,28 @@
  * - Read receipts & unread counts
  * - Message pagination
  */
-import firestore from '@react-native-firebase/firestore';
-import storage from '@react-native-firebase/storage';
-import type { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+import { db, storage } from './firebase';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  addDoc,
+  query,
+  where,
+  orderBy,
+  limit as firestoreLimit,
+  startAfter,
+  onSnapshot,
+  writeBatch,
+  serverTimestamp,
+  increment,
+  Timestamp,
+} from '@react-native-firebase/firestore';
+import { ref, getDownloadURL } from '@react-native-firebase/storage';
 import type {
   Chat,
   Message,
@@ -23,8 +42,8 @@ import type {
 } from '../types/chat';
 import type { UserRole } from '../types/user';
 
-const chatsRef = firestore().collection('chats');
-const presenceRef = firestore().collection('userPresence');
+const chatsCol = collection(db, 'chats');
+const presenceCol = collection(db, 'userPresence');
 
 // ─── Chat CRUD ───────────────────────────────────────────────────────────────
 
@@ -35,12 +54,11 @@ export async function findExistingChat(
   userId: string,
   otherUserId: string
 ): Promise<Chat | null> {
-  const snapshot = await chatsRef
-    .where('participantIds', 'array-contains', userId)
-    .get();
+  const q = query(chatsCol, where('participantIds', 'array-contains', userId));
+  const snapshot = await getDocs(q);
 
-  for (const doc of snapshot.docs) {
-    const chat = doc.data() as Chat;
+  for (const d of snapshot.docs) {
+    const chat = d.data() as Chat;
     if (chat.participantIds.includes(otherUserId)) {
       return chat;
     }
@@ -64,8 +82,9 @@ export async function createChat(
   const existing = await findExistingChat(currentUserId, input.otherUserId);
   if (existing) return existing;
 
-  const chatId = chatsRef.doc().id;
-  const now = firestore.FieldValue.serverTimestamp();
+  const chatRef = doc(chatsCol);
+  const chatId = chatRef.id;
+  const now = serverTimestamp();
 
   // Determine chat type
   let type: ChatType = 'user_agent';
@@ -95,10 +114,7 @@ export async function createChat(
     role: input.otherUserRole,
   };
 
-  const chatData: Omit<Chat, 'createdAt' | 'updatedAt'> & {
-    createdAt: ReturnType<typeof firestore.FieldValue.serverTimestamp>;
-    updatedAt: ReturnType<typeof firestore.FieldValue.serverTimestamp>;
-  } = {
+  const chatData = {
     chatId,
     type,
     participants: {
@@ -111,8 +127,8 @@ export async function createChat(
       [currentUserId]: 0,
       [input.otherUserId]: 0,
     },
-    createdAt: now as any,
-    updatedAt: now as any,
+    createdAt: now,
+    updatedAt: now,
     archived: {
       [currentUserId]: false,
       [input.otherUserId]: false,
@@ -123,7 +139,7 @@ export async function createChat(
     },
   };
 
-  await chatsRef.doc(chatId).set(chatData);
+  await setDoc(doc(db, 'chats', chatId), chatData);
 
   // Send initial message if provided
   if (input.initialMessage?.trim()) {
@@ -138,17 +154,17 @@ export async function createChat(
   }
 
   // Fetch the created document to get server timestamps
-  const doc = await chatsRef.doc(chatId).get();
-  return doc.data() as Chat;
+  const snap = await getDoc(doc(db, 'chats', chatId));
+  return snap.data() as Chat;
 }
 
 /**
  * Fetch a single chat by ID.
  */
 export async function fetchChatById(chatId: string): Promise<Chat | null> {
-  const doc = await chatsRef.doc(chatId).get();
-  if (!doc.exists) return null;
-  return doc.data() as Chat;
+  const snap = await getDoc(doc(db, 'chats', chatId));
+  if (!snap.exists()) return null;
+  return snap.data() as Chat;
 }
 
 // ─── Messages ────────────────────────────────────────────────────────────────
@@ -165,9 +181,10 @@ export async function sendMessage(
   type: MessageType = 'text',
   replyTo?: Message['replyTo']
 ): Promise<Message> {
-  const messagesRef = chatsRef.doc(chatId).collection('messages');
-  const messageId = messagesRef.doc().id;
-  const now = firestore.FieldValue.serverTimestamp();
+  const messagesCol = collection(db, 'chats', chatId, 'messages');
+  const messageRef = doc(messagesCol);
+  const messageId = messageRef.id;
+  const now = serverTimestamp();
 
   const messageData = {
     messageId,
@@ -188,25 +205,26 @@ export async function sendMessage(
   };
 
   // Batch write: message + update chat's lastMessage + increment unread
-  const batch = firestore().batch();
+  const batch = writeBatch(db);
 
   // Write message
-  batch.set(messagesRef.doc(messageId), messageData);
+  batch.set(messageRef, messageData);
 
   // Get chat to find other participant IDs
-  const chatDoc = await chatsRef.doc(chatId).get();
-  const chat = chatDoc.data() as Chat;
+  const chatSnap = await getDoc(doc(db, 'chats', chatId));
+  const chat = chatSnap.data() as Chat;
 
   // Build unread increment for all participants except sender
   const unreadUpdates: Record<string, any> = {};
   for (const pid of chat.participantIds) {
     if (pid !== senderId) {
-      unreadUpdates[`unreadCount.${pid}`] = firestore.FieldValue.increment(1);
+      unreadUpdates[`unreadCount.${pid}`] = increment(1);
     }
   }
 
   // Update chat metadata
-  batch.update(chatsRef.doc(chatId), {
+  const chatDocRef = doc(db, 'chats', chatId);
+  batch.update(chatDocRef, {
     lastMessage: {
       text: type === 'text' ? text : `Sent ${type === 'image' ? 'an image' : 'a document'}`,
       senderId,
@@ -222,9 +240,9 @@ export async function sendMessage(
   // Return a local version (server timestamp not yet resolved)
   return {
     ...messageData,
-    timestamp: firestore.Timestamp.now(),
+    timestamp: Timestamp.now(),
     readBy: {
-      [senderId]: firestore.Timestamp.now(),
+      [senderId]: Timestamp.now(),
     },
   } as Message;
 }
@@ -235,20 +253,21 @@ export async function sendMessage(
 export async function fetchMessages(
   chatId: string,
   messageLimit = 30,
-  startAfterTimestamp?: FirebaseFirestoreTypes.Timestamp
+  startAfterTimestamp?: any
 ): Promise<Message[]> {
-  let query = chatsRef
-    .doc(chatId)
-    .collection('messages')
-    .orderBy('timestamp', 'desc')
-    .limit(messageLimit);
+  const messagesCol = collection(db, 'chats', chatId, 'messages');
+  const constraints: any[] = [
+    orderBy('timestamp', 'desc'),
+    firestoreLimit(messageLimit),
+  ];
 
   if (startAfterTimestamp) {
-    query = query.startAfter(startAfterTimestamp);
+    constraints.push(startAfter(startAfterTimestamp));
   }
 
-  const snapshot = await query.get();
-  return snapshot.docs.map((doc) => doc.data() as Message);
+  const q = query(messagesCol, ...constraints);
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d: any) => d.data() as Message);
 }
 
 /**
@@ -257,23 +276,25 @@ export async function fetchMessages(
  */
 export function subscribeToMessages(
   chatId: string,
-  limit: number,
+  count: number,
   callback: (messages: Message[]) => void
 ): () => void {
-  return chatsRef
-    .doc(chatId)
-    .collection('messages')
-    .orderBy('timestamp', 'desc')
-    .limit(limit)
-    .onSnapshot(
-      (snapshot) => {
-        const messages = snapshot.docs.map((doc) => doc.data() as Message);
-        callback(messages);
-      },
-      (error) => {
-        console.error('[Chat] Message subscription error:', error);
-      }
-    );
+  const q = query(
+    collection(db, 'chats', chatId, 'messages'),
+    orderBy('timestamp', 'desc'),
+    firestoreLimit(count)
+  );
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const messages = snapshot.docs.map((d: any) => d.data() as Message);
+      callback(messages);
+    },
+    (error) => {
+      console.error('[Chat] Message subscription error:', error);
+    }
+  );
 }
 
 /**
@@ -284,18 +305,22 @@ export function subscribeToChats(
   userId: string,
   callback: (chats: Chat[]) => void
 ): () => void {
-  return chatsRef
-    .where('participantIds', 'array-contains', userId)
-    .orderBy('updatedAt', 'desc')
-    .onSnapshot(
-      (snapshot) => {
-        const chats = snapshot.docs.map((doc) => doc.data() as Chat);
-        callback(chats);
-      },
-      (error) => {
-        console.error('[Chat] Chats subscription error:', error);
-      }
-    );
+  const q = query(
+    chatsCol,
+    where('participantIds', 'array-contains', userId),
+    orderBy('updatedAt', 'desc')
+  );
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const chats = snapshot.docs.map((d: any) => d.data() as Chat);
+      callback(chats);
+    },
+    (error) => {
+      console.error('[Chat] Chats subscription error:', error);
+    }
+  );
 }
 
 // ─── Read Receipts & Unread ──────────────────────────────────────────────────
@@ -308,25 +333,25 @@ export async function markChatAsRead(
   userId: string
 ): Promise<void> {
   // Reset unread count
-  await chatsRef.doc(chatId).update({
+  await updateDoc(doc(db, 'chats', chatId), {
     [`unreadCount.${userId}`]: 0,
   });
 
   // Fetch recent messages and mark unread ones as read
-  const allRecent = await chatsRef
-    .doc(chatId)
-    .collection('messages')
-    .orderBy('timestamp', 'desc')
-    .limit(50)
-    .get();
+  const q = query(
+    collection(db, 'chats', chatId, 'messages'),
+    orderBy('timestamp', 'desc'),
+    firestoreLimit(50)
+  );
+  const allRecent = await getDocs(q);
 
-  const batch = firestore().batch();
+  const batch = writeBatch(db);
   let updated = 0;
-  for (const doc of allRecent.docs) {
-    const msg = doc.data() as Message;
+  for (const d of allRecent.docs) {
+    const msg = d.data() as Message;
     if (msg.senderId !== userId && !msg.readBy?.[userId]) {
-      batch.update(doc.ref, {
-        [`readBy.${userId}`]: firestore.FieldValue.serverTimestamp(),
+      batch.update(d.ref, {
+        [`readBy.${userId}`]: serverTimestamp(),
       });
       updated++;
     }
@@ -340,13 +365,12 @@ export async function markChatAsRead(
  * Get total unread count across all chats for a user.
  */
 export async function getTotalUnreadCount(userId: string): Promise<number> {
-  const snapshot = await chatsRef
-    .where('participantIds', 'array-contains', userId)
-    .get();
+  const q = query(chatsCol, where('participantIds', 'array-contains', userId));
+  const snapshot = await getDocs(q);
 
   let total = 0;
-  for (const doc of snapshot.docs) {
-    const chat = doc.data() as Chat;
+  for (const d of snapshot.docs) {
+    const chat = d.data() as Chat;
     total += chat.unreadCount?.[userId] || 0;
   }
   return total;
@@ -361,7 +385,8 @@ export async function setTypingStatus(
   userId: string,
   chatId: string | null
 ): Promise<void> {
-  await presenceRef.doc(userId).set(
+  await setDoc(
+    doc(db, 'userPresence', userId),
     {
       uid: userId,
       isTypingIn: chatId,
@@ -378,7 +403,8 @@ export function subscribeToPresence(
   userId: string,
   callback: (presence: UserPresence | null) => void
 ): () => void {
-  return presenceRef.doc(userId).onSnapshot(
+  return onSnapshot(
+    doc(db, 'userPresence', userId),
     (snapshot) => {
       const data = snapshot.data();
       if (data) {
@@ -402,11 +428,12 @@ export async function updateOnlineStatus(
   userId: string,
   isOnline: boolean
 ): Promise<void> {
-  await presenceRef.doc(userId).set(
+  await setDoc(
+    doc(db, 'userPresence', userId),
     {
       uid: userId,
       isOnline,
-      lastSeen: firestore.FieldValue.serverTimestamp(),
+      lastSeen: serverTimestamp(),
       ...(isOnline ? {} : { isTypingIn: null, currentChatId: null }),
     },
     { merge: true }
@@ -420,7 +447,8 @@ export async function setCurrentChat(
   userId: string,
   chatId: string | null
 ): Promise<void> {
-  await presenceRef.doc(userId).set(
+  await setDoc(
+    doc(db, 'userPresence', userId),
     {
       uid: userId,
       currentChatId: chatId,
@@ -438,15 +466,11 @@ export async function deleteMessage(
   chatId: string,
   messageId: string
 ): Promise<void> {
-  await chatsRef
-    .doc(chatId)
-    .collection('messages')
-    .doc(messageId)
-    .update({
-      deleted: true,
-      deletedAt: firestore.FieldValue.serverTimestamp(),
-      content: { text: 'This message was deleted' },
-    });
+  await updateDoc(doc(db, 'chats', chatId, 'messages', messageId), {
+    deleted: true,
+    deletedAt: serverTimestamp(),
+    content: { text: 'This message was deleted' },
+  });
 }
 
 /**
@@ -457,15 +481,11 @@ export async function editMessage(
   messageId: string,
   newText: string
 ): Promise<void> {
-  await chatsRef
-    .doc(chatId)
-    .collection('messages')
-    .doc(messageId)
-    .update({
-      'content.text': newText,
-      edited: true,
-      editedAt: firestore.FieldValue.serverTimestamp(),
-    });
+  await updateDoc(doc(db, 'chats', chatId, 'messages', messageId), {
+    'content.text': newText,
+    edited: true,
+    editedAt: serverTimestamp(),
+  });
 }
 
 // ─── Chat Actions ────────────────────────────────────────────────────────────
@@ -478,7 +498,7 @@ export async function toggleArchiveChat(
   userId: string,
   archived: boolean
 ): Promise<void> {
-  await chatsRef.doc(chatId).update({
+  await updateDoc(doc(db, 'chats', chatId), {
     [`archived.${userId}`]: archived,
   });
 }
@@ -491,7 +511,7 @@ export async function toggleMuteChat(
   userId: string,
   muted: boolean
 ): Promise<void> {
-  await chatsRef.doc(chatId).update({
+  await updateDoc(doc(db, 'chats', chatId), {
     [`muted.${userId}`]: muted,
   });
 }
@@ -501,19 +521,20 @@ export async function toggleMuteChat(
  */
 export async function deleteChat(chatId: string): Promise<void> {
   // Delete all messages in batches (Firestore batch limit is 500)
-  const messagesCollection = chatsRef.doc(chatId).collection('messages');
+  const messagesCol = collection(db, 'chats', chatId, 'messages');
   let hasMore = true;
 
   while (hasMore) {
-    const snapshot = await messagesCollection.limit(450).get();
+    const q = query(messagesCol, firestoreLimit(450));
+    const snapshot = await getDocs(q);
     if (snapshot.empty) {
       hasMore = false;
       break;
     }
 
-    const batch = firestore().batch();
-    for (const doc of snapshot.docs) {
-      batch.delete(doc.ref);
+    const batch = writeBatch(db);
+    for (const d of snapshot.docs) {
+      batch.delete(d.ref);
     }
     await batch.commit();
 
@@ -523,7 +544,7 @@ export async function deleteChat(chatId: string): Promise<void> {
   }
 
   // Delete the chat document itself
-  await chatsRef.doc(chatId).delete();
+  await deleteDoc(doc(db, 'chats', chatId));
 }
 
 // ─── Media / File Upload ──────────────────────────────────────────────────────
@@ -542,13 +563,13 @@ export async function uploadChatMedia(
   const sanitizedName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
   const storagePath = `chat_media/${chatId}/${timestamp}_${sanitizedName}`;
 
-  const ref = storage().ref(storagePath);
+  const storageRef = ref(storage, storagePath);
 
   // Upload task
-  await ref.putFile(fileUri, mimeType ? { contentType: mimeType } : undefined);
+  await storageRef.putFile(fileUri, mimeType ? { contentType: mimeType } : undefined);
 
   // Get download URL
-  const downloadUrl = await ref.getDownloadURL();
+  const downloadUrl = await getDownloadURL(storageRef);
   return downloadUrl;
 }
 
@@ -567,9 +588,10 @@ export async function sendImageMessage(
   // Upload image to Firebase Storage
   const mediaUrl = await uploadChatMedia(chatId, imageUri, fileName, 'image/jpeg');
 
-  const messagesRef = chatsRef.doc(chatId).collection('messages');
-  const messageId = messagesRef.doc().id;
-  const now = firestore.FieldValue.serverTimestamp();
+  const messagesCol = collection(db, 'chats', chatId, 'messages');
+  const messageRef = doc(messagesCol);
+  const messageId = messageRef.id;
+  const now = serverTimestamp();
 
   const messageData = {
     messageId,
@@ -592,20 +614,20 @@ export async function sendImageMessage(
   };
 
   // Batch write: message + update chat's lastMessage + increment unread
-  const batch = firestore().batch();
-  batch.set(messagesRef.doc(messageId), messageData);
+  const batch = writeBatch(db);
+  batch.set(messageRef, messageData);
 
-  const chatDoc = await chatsRef.doc(chatId).get();
-  const chat = chatDoc.data() as Chat;
+  const chatSnap = await getDoc(doc(db, 'chats', chatId));
+  const chat = chatSnap.data() as Chat;
 
   const unreadUpdates: Record<string, any> = {};
   for (const pid of chat.participantIds) {
     if (pid !== senderId) {
-      unreadUpdates[`unreadCount.${pid}`] = firestore.FieldValue.increment(1);
+      unreadUpdates[`unreadCount.${pid}`] = increment(1);
     }
   }
 
-  batch.update(chatsRef.doc(chatId), {
+  batch.update(doc(db, 'chats', chatId), {
     lastMessage: {
       text: 'Sent a photo',
       senderId,
@@ -620,8 +642,8 @@ export async function sendImageMessage(
 
   return {
     ...messageData,
-    timestamp: firestore.Timestamp.now(),
-    readBy: { [senderId]: firestore.Timestamp.now() },
+    timestamp: Timestamp.now(),
+    readBy: { [senderId]: Timestamp.now() },
   } as Message;
 }
 
@@ -642,9 +664,10 @@ export async function sendDocumentMessage(
   // Upload file to Firebase Storage
   const mediaUrl = await uploadChatMedia(chatId, fileUri, fileName, mimeType);
 
-  const messagesRef = chatsRef.doc(chatId).collection('messages');
-  const messageId = messagesRef.doc().id;
-  const now = firestore.FieldValue.serverTimestamp();
+  const messagesCol = collection(db, 'chats', chatId, 'messages');
+  const messageRef = doc(messagesCol);
+  const messageId = messageRef.id;
+  const now = serverTimestamp();
 
   const messageData = {
     messageId,
@@ -668,20 +691,20 @@ export async function sendDocumentMessage(
   };
 
   // Batch write
-  const batch = firestore().batch();
-  batch.set(messagesRef.doc(messageId), messageData);
+  const batch = writeBatch(db);
+  batch.set(messageRef, messageData);
 
-  const chatDoc = await chatsRef.doc(chatId).get();
-  const chat = chatDoc.data() as Chat;
+  const chatSnap = await getDoc(doc(db, 'chats', chatId));
+  const chat = chatSnap.data() as Chat;
 
   const unreadUpdates: Record<string, any> = {};
   for (const pid of chat.participantIds) {
     if (pid !== senderId) {
-      unreadUpdates[`unreadCount.${pid}`] = firestore.FieldValue.increment(1);
+      unreadUpdates[`unreadCount.${pid}`] = increment(1);
     }
   }
 
-  batch.update(chatsRef.doc(chatId), {
+  batch.update(doc(db, 'chats', chatId), {
     lastMessage: {
       text: `Sent a file: ${fileName}`,
       senderId,
@@ -696,7 +719,7 @@ export async function sendDocumentMessage(
 
   return {
     ...messageData,
-    timestamp: firestore.Timestamp.now(),
-    readBy: { [senderId]: firestore.Timestamp.now() },
+    timestamp: Timestamp.now(),
+    readBy: { [senderId]: Timestamp.now() },
   } as Message;
 }

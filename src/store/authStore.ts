@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { auth } from '../services/firebase';
-import type { User } from '../types';
+import { onAuthStateChanged } from '@react-native-firebase/auth';
+import type { User , CreateUserInput } from '../types';
 import { useChatStore } from './chatStore';
 import {
   signInWithEmail,
@@ -13,7 +14,7 @@ import {
   signInWithGoogle,
   createGoogleUserDoc,
 } from '../services/auth';
-import type { CreateUserInput } from '../types';
+
 
 interface AuthState {
   /** Firebase Auth user (null when signed out) */
@@ -74,7 +75,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   initialize: () => {
     // Set up auth state listener
-    const unsubscribe = auth().onAuthStateChanged(async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('[Auth] State changed:', user ? `User ${user.uid}` : 'No user');
 
       // If a Google sign-in is actively in progress, let signInWithGoogle()
@@ -246,7 +247,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   completeGoogleRegistration: async (phone?: string) => {
     set({ loading: true, error: null });
     try {
-      const currentUser = auth().currentUser;
+      const currentUser = auth.currentUser;
       if (!currentUser) throw new Error('No user logged in');
 
       await createGoogleUserDoc(

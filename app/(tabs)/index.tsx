@@ -1,32 +1,71 @@
 import React, { useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, Image, Dimensions, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  Image,
+  Dimensions,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, MapPin, Calendar, Star, ChevronRight, TrendingUp, Award, Users, CreditCard, FileText, Shield } from '@/components/Icons';
+import {
+  Search,
+  Star,
+  ChevronRight,
+  TrendingUp,
+  Award,
+  Users,
+  CreditCard,
+  FileText,
+  Shield,
+} from '@/components/Icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  FadeIn,
 } from 'react-native-reanimated';
 import { Link, useRouter } from 'expo-router';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useColorScheme } from 'nativewind';
 import { useAuthStore } from '@/src/store/authStore';
 import { useAgentStore } from '@/src/store/agentStore';
+import { useFavoritesStore } from '@/src/store/favoritesStore';
 import type { Agent } from '@/src/types';
 
 const { width } = Dimensions.get('window');
 
 // Quick actions with theme-aware colors
 const quickActions = [
-  { id: 1, icon: Search, label: 'Find Agents', description: 'Browse all', href: '/(tabs)/agents' as const },
-  { id: 2, icon: CreditCard, label: 'Calculator', description: 'EMI & eligibility', href: '/calculator' as const },
-  { id: 3, icon: FileText, label: 'Apply Now', description: 'Mortgage form', href: '/application' as const },
-  { id: 4, icon: TrendingUp, label: 'My Apps', description: 'Track status', href: '/my-applications' as const },
+  {
+    id: 1,
+    icon: Search,
+    label: 'Find Agents',
+    description: 'Browse all',
+    href: '/(tabs)/agents' as const,
+  },
+  {
+    id: 2,
+    icon: CreditCard,
+    label: 'Calculator',
+    description: 'EMI & eligibility',
+    href: '/calculator' as const,
+  },
+  {
+    id: 3,
+    icon: FileText,
+    label: 'Apply Now',
+    description: 'Mortgage form',
+    href: '/application' as const,
+  },
+  {
+    id: 4,
+    icon: TrendingUp,
+    label: 'My Apps',
+    description: 'Track status',
+    href: '/my-applications' as const,
+  },
 ];
-
-// Admin quick action
-const adminAction = { id: 5, icon: Shield, label: 'Admin Panel', description: 'Dashboard', href: '/admin' as const };
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -35,7 +74,7 @@ function QuickActionCard({ item, index }: { item: (typeof quickActions)[0]; inde
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
-  
+
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -47,10 +86,8 @@ function QuickActionCard({ item, index }: { item: (typeof quickActions)[0]; inde
   return (
     <AnimatedPressable
       style={[animatedStyle, { width: '48%' }]}
-      className={`rounded-3xl border-2 p-4 shadow-sm overflow-hidden relative ${
-        isDark 
-          ? 'bg-[#1a1a1a] border-[#2a2a2a]' 
-          : 'bg-white border-gray-200'
+      className={`relative overflow-hidden rounded-3xl border-2 p-4 shadow-sm ${
+        isDark ? 'border-[#2a2a2a] bg-[#1a1a1a]' : 'border-gray-200 bg-white'
       }`}
       onPress={() => router.push(item.href as any)}
       onPressIn={() => {
@@ -59,18 +96,18 @@ function QuickActionCard({ item, index }: { item: (typeof quickActions)[0]; inde
       onPressOut={() => {
         scale.value = withTiming(1, { duration: 150 });
       }}>
-      
       {/* Decorative Circle Overlay */}
       <View className={`absolute -right-8 -top-8 ${isDark ? 'opacity-[0.03]' : 'opacity-[0.08]'}`}>
-        <View className={`w-28 h-28 rounded-full ${isDark ? 'bg-white' : 'bg-black'}`} />
+        <View className={`h-28 w-28 rounded-full ${isDark ? 'bg-white' : 'bg-black'}`} />
       </View>
 
-      <View className={`w-14 h-14 rounded-2xl items-center justify-center mb-3 shadow-lg ${
-        isDark ? 'bg-white' : 'bg-black'
-      }`}>
+      <View
+        className={`mb-3 h-14 w-14 items-center justify-center rounded-2xl shadow-lg ${
+          isDark ? 'bg-white' : 'bg-black'
+        }`}>
         <Icon color={isDark ? '#000' : '#fff'} size={24} strokeWidth={2.5} />
       </View>
-      <Text className={`text-base font-bold mb-1 ${isDark ? 'text-white' : 'text-black'}`}>
+      <Text className={`mb-1 text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
         {item.label}
       </Text>
       <Text className={`text-xs leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -85,7 +122,7 @@ function FeaturedAgentCard({ agent }: { agent: Agent }) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
-  
+
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -93,19 +130,13 @@ function FeaturedAgentCard({ agent }: { agent: Agent }) {
   }));
 
   // Determine tag based on rating/experience
-  const tag = agent.avgRating >= 4.9
-    ? 'Top Agent'
-    : agent.experience >= 12
-    ? 'Expert'
-    : 'Featured';
+  const tag = agent.avgRating >= 4.9 ? 'Top Agent' : agent.experience >= 12 ? 'Expert' : 'Featured';
 
   return (
     <AnimatedPressable
       style={animatedStyle}
-      className={`mr-4 w-[180px] rounded-2xl overflow-hidden ${
-        isDark 
-          ? 'bg-[#111] border border-[#222]' 
-          : 'bg-white border border-gray-100'
+      className={`mr-4 w-[180px] overflow-hidden rounded-2xl ${
+        isDark ? 'border border-[#222] bg-[#111]' : 'border border-gray-100 bg-white'
       }`}
       onPress={() => router.push({ pathname: '/agent-detail', params: { agentId: agent.uid } })}
       onPressIn={() => {
@@ -114,53 +145,50 @@ function FeaturedAgentCard({ agent }: { agent: Agent }) {
       onPressOut={() => {
         scale.value = withTiming(1, { duration: 150 });
       }}>
-      
       {/* Agent Photo with Gradient Overlay */}
       <View className="relative h-52">
-        <Image 
-          source={{ uri: agent.photoURL || 'https://via.placeholder.com/400' }} 
-          className="w-full h-full"
-          resizeMode="cover" 
+        <Image
+          source={{ uri: agent.photoURL || 'https://via.placeholder.com/400' }}
+          className="h-full w-full"
+          resizeMode="cover"
         />
-        
+
         {/* Full Dark Overlay for better text contrast */}
-        <View className="absolute top-0 left-0 right-0 bottom-0 bg-black/30" />
-        
+        <View className="absolute bottom-0 left-0 right-0 top-0 bg-black/30" />
+
         {/* Top Badge */}
-        <View className="absolute top-2 left-2">
-          <View className="px-2.5 py-1.5 rounded-xl bg-white/20 border border-white/30 overflow-hidden">
-            <Text className="text-[10px] font-bold text-white">
-              {tag}
-            </Text>
+        <View className="absolute left-2 top-2">
+          <View className="overflow-hidden rounded-xl border border-white/30 bg-white/20 px-2.5 py-1.5">
+            <Text className="text-[10px] font-bold text-white">{tag}</Text>
           </View>
         </View>
 
         {/* Availability Dot */}
         {agent.availability && (
-          <View className="absolute top-2.5 right-2.5">
-            <View className="w-3 h-3 rounded-full bg-green-400 border-2 border-white/40" />
+          <View className="absolute right-2.5 top-2.5">
+            <View className="h-3 w-3 rounded-full border-2 border-white/40 bg-green-400" />
           </View>
         )}
-        
+
         {/* Agent Info Overlay */}
         <View className="absolute bottom-0 left-0 right-0 p-3">
-          <Text className="text-base font-bold mb-0.5 text-white" numberOfLines={1}>
+          <Text className="mb-0.5 text-base font-bold text-white" numberOfLines={1}>
             {agent.displayName}
           </Text>
-          <Text className="text-[10px] mb-2 text-white/90" numberOfLines={1}>
+          <Text className="mb-2 text-[10px] text-white/90" numberOfLines={1}>
             {agent.specialty?.[0] || 'Mortgage Specialist'}
           </Text>
-          
+
           {/* Stats Row */}
           <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center px-2.5 py-1.5 rounded-xl bg-white/20 border border-white/30 overflow-hidden">
+            <View className="flex-row items-center overflow-hidden rounded-xl border border-white/30 bg-white/20 px-2.5 py-1.5">
               <Star color="#fff" size={10} fill="#fff" />
               <Text className="ml-1 text-[10px] font-bold text-white">
                 {agent.avgRating?.toFixed(1) || '0.0'}
               </Text>
             </View>
-            
-            <View className="flex-row items-center px-2.5 py-1.5 rounded-xl bg-white/20 border border-white/30 overflow-hidden">
+
+            <View className="flex-row items-center overflow-hidden rounded-xl border border-white/30 bg-white/20 px-2.5 py-1.5">
               <Users color="#fff" size={10} />
               <Text className="ml-1 text-[10px] font-semibold text-white">
                 {agent.completedProjects || 0}+
@@ -169,7 +197,6 @@ function FeaturedAgentCard({ agent }: { agent: Agent }) {
           </View>
         </View>
       </View>
-
     </AnimatedPressable>
   );
 }
@@ -180,9 +207,10 @@ function FeaturedAgentSkeleton() {
   const isDark = colorScheme === 'dark';
 
   return (
-    <View className={`mr-4 w-[180px] h-52 rounded-2xl overflow-hidden ${
-      isDark ? 'bg-[#1a1a1a]' : 'bg-gray-200'
-    }`}>
+    <View
+      className={`mr-4 h-52 w-[180px] overflow-hidden rounded-2xl ${
+        isDark ? 'bg-[#1a1a1a]' : 'bg-gray-200'
+      }`}>
       <View className="flex-1 items-center justify-center">
         <ActivityIndicator color={isDark ? '#fff' : '#000'} />
       </View>
@@ -191,7 +219,13 @@ function FeaturedAgentSkeleton() {
 }
 
 // Stat Card Component
-function StatCard({ stat, agentCount }: { stat: { label: string; value: string; icon: any; dynamicValue?: string }; agentCount: number }) {
+function StatCard({
+  stat,
+  agentCount,
+}: {
+  stat: { label: string; value: string; icon: any; dynamicValue?: string };
+  agentCount: number;
+}) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -201,21 +235,20 @@ function StatCard({ stat, agentCount }: { stat: { label: string; value: string; 
   const displayValue = stat.dynamicValue || stat.value;
 
   return (
-    <View 
-      className={`flex-1 rounded-3xl border-2 p-4 items-center shadow-sm ${
-        isDark 
-          ? 'bg-[#1a1a1a] border-[#2a2a2a]' 
-          : 'bg-white border-gray-200'
+    <View
+      className={`flex-1 items-center rounded-3xl border-2 p-4 shadow-sm ${
+        isDark ? 'border-[#2a2a2a] bg-[#1a1a1a]' : 'border-gray-200 bg-white'
       }`}>
-      <View className={`w-12 h-12 rounded-2xl items-center justify-center mb-3 shadow-lg ${
-        isDark ? 'bg-white' : 'bg-black'
-      }`}>
+      <View
+        className={`mb-3 h-12 w-12 items-center justify-center rounded-2xl shadow-lg ${
+          isDark ? 'bg-white' : 'bg-black'
+        }`}>
         <Icon color={isDark ? '#000' : '#fff'} size={20} strokeWidth={2.5} />
       </View>
       <Text className={`text-xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
         {displayValue}
       </Text>
-      <Text className={`text-xs mt-1 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+      <Text className={`mt-1 text-center text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
         {stat.label}
       </Text>
     </View>
@@ -227,7 +260,9 @@ export default function HomeScreen() {
   const isDark = colorScheme === 'dark';
   const router = useRouter();
   const { userDoc, firebaseUser } = useAuthStore();
-  const { featuredAgents, featuredLoading, agents, fetchFeaturedAgents, subscribe } = useAgentStore();
+  const { featuredAgents, featuredLoading, agents, fetchFeaturedAgents, subscribe } =
+    useAgentStore();
+  const { favoriteIds } = useFavoritesStore();
   const isAdmin = userDoc?.role === 'admin';
 
   // Show first name only
@@ -243,11 +278,18 @@ export default function HomeScreen() {
 
   // Compute dynamic stats from real data
   const agentCount = agents.length || featuredAgents.length;
-  const avgRating = featuredAgents.length > 0
-    ? (featuredAgents.reduce((sum, a) => sum + (a.avgRating || 0), 0) / featuredAgents.length).toFixed(1)
-    : '0.0';
-  const totalProjects = agents.reduce((sum, a) => sum + (a.completedProjects || 0), 0) || 
+  const avgRating =
+    featuredAgents.length > 0
+      ? (
+          featuredAgents.reduce((sum, a) => sum + (a.avgRating || 0), 0) / featuredAgents.length
+        ).toFixed(1)
+      : '0.0';
+  const totalProjects =
+    agents.reduce((sum, a) => sum + (a.completedProjects || 0), 0) ||
     featuredAgents.reduce((sum, a) => sum + (a.completedProjects || 0), 0);
+
+  // Get favorite agents
+  const favoriteAgents = agents.filter((agent) => favoriteIds.includes(agent.uid));
 
   const platformStats = [
     { label: 'Active Agents', value: `${agentCount || '0'}`, icon: Users },
@@ -258,10 +300,10 @@ export default function HomeScreen() {
   return (
     <SafeAreaView className={`flex-1 ${isDark ? 'bg-black' : 'bg-gray-50'}`}>
       {/* Header */}
-      <View className="px-6 pt-2 pb-6">
+      <View className="px-6 pb-6 pt-2">
         <View className="flex-row items-center justify-between">
           <View>
-            <Text className={`text-sm mb-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+            <Text className={`mb-1 text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
               Welcome back,
             </Text>
             <Text className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
@@ -276,24 +318,22 @@ export default function HomeScreen() {
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}>
-        
         {/* Admin Dashboard Banner */}
         {isAdmin && (
           <Pressable
             onPress={() => router.push('/admin' as any)}
-            className={`mx-6 mb-6 rounded-3xl border-2 p-4 flex-row items-center ${
-              isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-black border-black'
+            className={`mx-6 mb-6 flex-row items-center rounded-3xl border-2 p-4 ${
+              isDark ? 'border-[#2a2a2a] bg-[#1a1a1a]' : 'border-black bg-black'
             }`}>
-            <View className={`w-12 h-12 rounded-2xl items-center justify-center mr-4 ${
-              isDark ? 'bg-white' : 'bg-white'
-            }`}>
+            <View
+              className={`mr-4 h-12 w-12 items-center justify-center rounded-2xl ${
+                isDark ? 'bg-white' : 'bg-white'
+              }`}>
               <Shield color="#000" size={22} strokeWidth={2.5} />
             </View>
             <View className="flex-1">
-              <Text className="text-base font-bold text-white">
-                Admin Dashboard
-              </Text>
-              <Text className="text-xs text-gray-400 mt-0.5">
+              <Text className="text-base font-bold text-white">Admin Dashboard</Text>
+              <Text className="mt-0.5 text-xs text-gray-400">
                 Manage users, apps, support & analytics
               </Text>
             </View>
@@ -302,7 +342,7 @@ export default function HomeScreen() {
         )}
 
         {/* Quick Actions Grid */}
-        <View className="px-6 mb-8">
+        <View className="mb-8 px-6">
           <View className="flex-row flex-wrap justify-between gap-y-3">
             {quickActions.map((item, index) => (
               <QuickActionCard key={item.id} item={item} index={index} />
@@ -312,25 +352,26 @@ export default function HomeScreen() {
 
         {/* Featured Agents Section */}
         <View className="mb-8">
-          <View className="flex-row items-center justify-between px-6 mb-4">
+          <View className="mb-4 flex-row items-center justify-between px-6">
             <View>
               <Text className={`text-xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                 Featured Agents
               </Text>
-              <Text className={`text-sm mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+              <Text className={`mt-0.5 text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                 Top-rated professionals
               </Text>
             </View>
             <Link href="/(tabs)/agents" asChild>
-              <Pressable className="flex-row items-center px-3 py-2 rounded-full bg-transparent">
-                <Text className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              <Pressable className="flex-row items-center rounded-full bg-transparent px-3 py-2">
+                <Text
+                  className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                   See All
                 </Text>
                 <ChevronRight color={isDark ? '#666' : '#999'} size={16} />
               </Pressable>
             </Link>
           </View>
-          
+
           {featuredLoading ? (
             // Loading skeleton
             <ScrollView
@@ -343,16 +384,18 @@ export default function HomeScreen() {
             </ScrollView>
           ) : featuredAgents.length === 0 ? (
             // Empty state
-            <View className="mx-6 py-8 items-center">
-              <View className={`w-16 h-16 rounded-full items-center justify-center mb-3 ${
-                isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'
-              }`}>
+            <View className="mx-6 items-center py-8">
+              <View
+                className={`mb-3 h-16 w-16 items-center justify-center rounded-full ${
+                  isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'
+                }`}>
                 <Users color={isDark ? '#555' : '#999'} size={28} />
               </View>
-              <Text className={`text-base font-semibold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              <Text
+                className={`mb-1 text-base font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                 No agents yet
               </Text>
-              <Text className={`text-sm text-center ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+              <Text className={`text-center text-sm ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
                 Agents will appear here once they join the platform
               </Text>
             </View>
@@ -371,9 +414,45 @@ export default function HomeScreen() {
           )}
         </View>
 
+        {/* Your Favorite Agents Section */}
+        {favoriteAgents.length > 0 && (
+          <View className="mb-8">
+            <View className="mb-4 flex-row items-center justify-between px-6">
+              <View>
+                <Text className={`text-xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+                  Your Favorite Agents
+                </Text>
+                <Text className={`mt-0.5 text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                  {favoriteAgents.length} {favoriteAgents.length === 1 ? 'agent' : 'agents'} saved
+                </Text>
+              </View>
+              <Link href="/(tabs)/agents" asChild>
+                <Pressable className="flex-row items-center rounded-full bg-transparent px-3 py-2">
+                  <Text
+                    className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    See All
+                  </Text>
+                  <ChevronRight color={isDark ? '#666' : '#999'} size={16} />
+                </Pressable>
+              </Link>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingLeft: 24, paddingRight: 8 }}
+              decelerationRate="fast"
+              snapToInterval={196}>
+              {favoriteAgents.map((agent) => (
+                <FeaturedAgentCard key={agent.uid} agent={agent} />
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Platform Stats */}
         <View className="px-6">
-          <Text className={`text-xl font-bold mb-4 ${isDark ? 'text-white' : 'text-black'}`}>
+          <Text className={`mb-4 text-xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
             Platform Stats
           </Text>
           <View className="flex-row gap-3">
@@ -384,28 +463,28 @@ export default function HomeScreen() {
         </View>
 
         {/* CTA Banner */}
-        <View className="px-6 mt-8">
+        <View className="mt-8 px-6">
           <View className={`rounded-3xl p-6 ${isDark ? 'bg-white' : 'bg-black'}`}>
             <View className="flex-row items-start justify-between">
               <View className="flex-1 pr-4">
                 <Text className={`text-xl font-bold ${isDark ? 'text-black' : 'text-white'}`}>
                   Ready to Apply?
                 </Text>
-                <Text className={`text-sm mt-2 leading-5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                <Text
+                  className={`mt-2 text-sm leading-5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
                   Calculate your EMI, check eligibility, and submit your mortgage application
                 </Text>
               </View>
-              <View className={`w-12 h-12 rounded-2xl items-center justify-center ${
-                isDark ? 'bg-black' : 'bg-white'
-              }`}>
+              <View
+                className={`h-12 w-12 items-center justify-center rounded-2xl ${
+                  isDark ? 'bg-black' : 'bg-white'
+                }`}>
                 <CreditCard color={isDark ? '#fff' : '#000'} size={24} />
               </View>
             </View>
-            <Pressable 
+            <Pressable
               onPress={() => router.push('/calculator' as any)}
-              className={`mt-5 rounded-xl py-3.5 items-center ${
-                isDark ? 'bg-black' : 'bg-white'
-              }`}>
+              className={`mt-5 items-center rounded-xl py-3.5 ${isDark ? 'bg-black' : 'bg-white'}`}>
               <Text className={`font-semibold ${isDark ? 'text-white' : 'text-black'}`}>
                 Open Calculator
               </Text>

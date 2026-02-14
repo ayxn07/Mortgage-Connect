@@ -1,4 +1,17 @@
-import { firestore, storage } from './firebase';
+import { db, storage } from './firebase';
+import {
+  collection,
+  doc,
+  addDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  query,
+  where,
+  orderBy,
+  serverTimestamp,
+} from '@react-native-firebase/firestore';
+import { ref, getDownloadURL } from '@react-native-firebase/storage';
 import type { MortgageApplication, UploadedDocument, DocumentCategory } from '../types';
 
 /**
@@ -7,13 +20,11 @@ import type { MortgageApplication, UploadedDocument, DocumentCategory } from '..
 export async function createApplication(
   data: Omit<MortgageApplication, 'applicationId' | 'createdAt' | 'updatedAt'>
 ): Promise<string> {
-  const docRef = await firestore()
-    .collection('applications')
-    .add({
-      ...data,
-      createdAt: firestore.FieldValue.serverTimestamp(),
-      updatedAt: firestore.FieldValue.serverTimestamp(),
-    });
+  const docRef = await addDoc(collection(db, 'applications'), {
+    ...data,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
   return docRef.id;
 }
 
@@ -21,14 +32,15 @@ export async function createApplication(
  * Fetch all applications for a given user.
  */
 export async function fetchUserApplications(userId: string): Promise<MortgageApplication[]> {
-  const snapshot = await firestore()
-    .collection('applications')
-    .where('userId', '==', userId)
-    .orderBy('createdAt', 'desc')
-    .get();
+  const q = query(
+    collection(db, 'applications'),
+    where('userId', '==', userId),
+    orderBy('createdAt', 'desc')
+  );
+  const snapshot = await getDocs(q);
 
   return snapshot.docs.map(
-    (doc) => ({ ...doc.data(), applicationId: doc.id }) as MortgageApplication
+    (d: any) => ({ ...d.data(), applicationId: d.id }) as MortgageApplication
   );
 }
 
@@ -38,9 +50,9 @@ export async function fetchUserApplications(userId: string): Promise<MortgageApp
 export async function fetchApplicationById(
   applicationId: string
 ): Promise<MortgageApplication | null> {
-  const doc = await firestore().collection('applications').doc(applicationId).get();
-  if (!doc.exists) return null;
-  return { ...doc.data(), applicationId: doc.id } as MortgageApplication;
+  const snap = await getDoc(doc(db, 'applications', applicationId));
+  if (!snap.exists()) return null;
+  return { ...snap.data(), applicationId: snap.id } as MortgageApplication;
 }
 
 /**
@@ -50,13 +62,10 @@ export async function updateApplication(
   applicationId: string,
   data: Partial<MortgageApplication>
 ) {
-  return firestore()
-    .collection('applications')
-    .doc(applicationId)
-    .update({
-      ...data,
-      updatedAt: firestore.FieldValue.serverTimestamp(),
-    });
+  return updateDoc(doc(db, 'applications', applicationId), {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 /**
@@ -98,9 +107,9 @@ export async function uploadDocument(
   const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
   const storagePath = `applications/${userId}/${applicationId}/${category}_${timestamp}_${safeName}`;
 
-  const reference = storage().ref(storagePath);
+  const reference = ref(storage, storagePath);
   await reference.putFile(fileUri);
-  const downloadURL = await reference.getDownloadURL();
+  const downloadURL = await getDownloadURL(reference);
 
   return {
     id: `${category}_${timestamp}`,
@@ -118,7 +127,7 @@ export async function uploadDocument(
  */
 export async function deleteDocument(downloadURL: string): Promise<void> {
   try {
-    const reference = storage().refFromURL(downloadURL);
+    const reference = ref(storage, downloadURL);
     await reference.delete();
   } catch (error) {
     // File may already be deleted, ignore
@@ -130,11 +139,8 @@ export async function deleteDocument(downloadURL: string): Promise<void> {
  * Submit an application (change status from draft to submitted).
  */
 export async function submitApplication(applicationId: string): Promise<void> {
-  await firestore()
-    .collection('applications')
-    .doc(applicationId)
-    .update({
-      status: 'submitted',
-      updatedAt: firestore.FieldValue.serverTimestamp(),
-    });
+  await updateDoc(doc(db, 'applications', applicationId), {
+    status: 'submitted',
+    updatedAt: serverTimestamp(),
+  });
 }

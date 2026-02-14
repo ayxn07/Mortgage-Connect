@@ -14,7 +14,119 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '@/src/store/authStore';
 import { useApplicationStore } from '@/src/store/applicationStore';
+import { loadDraftsLocally, deleteDraftLocally, type ApplicationDraft } from '@/src/utils/draftStorage';
 import type { MortgageApplication, ApplicationStatus } from '@/src/types';
+
+// ---------- Draft Card ----------
+function DraftCard({
+  draft,
+  isDark,
+  onContinue,
+  onDelete,
+}: {
+  draft: ApplicationDraft;
+  isDark: boolean;
+  onContinue: () => void;
+  onDelete: () => void;
+}) {
+  const lastSavedDate = new Date(draft.lastSaved);
+  const timeAgo = getTimeAgo(lastSavedDate);
+  const progressPercent = Math.round((draft.currentStep / 9) * 100);
+
+  return (
+    <Animated.View entering={FadeInDown.duration(400)}>
+      <View
+        className={`rounded-3xl border mb-4 overflow-hidden ${
+          isDark ? 'bg-[#111] border-[#222]' : 'bg-white border-gray-100'
+        }`}
+        style={{
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: isDark ? 0.3 : 0.08,
+          shadowRadius: 8,
+          elevation: 3,
+        }}>
+        {/* Header */}
+        <View className="p-5">
+          <View className="flex-row items-start justify-between mb-3">
+            <View className="flex-1 mr-3">
+              <View className="flex-row items-center mb-1">
+                <Feather name="edit-3" size={16} color={isDark ? '#888' : '#666'} />
+                <Text className={`text-base font-bold ml-2 ${isDark ? 'text-white' : 'text-black'}`}>
+                  Draft Application
+                </Text>
+              </View>
+              <Text className={`text-xs ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                Last saved {timeAgo}
+              </Text>
+            </View>
+
+            {/* Draft Badge */}
+            <View className="px-3 py-1.5 rounded-xl bg-gray-500/10">
+              <Text className="text-xs font-semibold text-gray-500">
+                Draft
+              </Text>
+            </View>
+          </View>
+
+          {/* Progress Bar */}
+          <View className="mb-3">
+            <View className="flex-row items-center justify-between mb-1.5">
+              <Text className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                Progress
+              </Text>
+              <Text className={`text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+                {progressPercent}%
+              </Text>
+            </View>
+            <View className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'}`}>
+              <View 
+                className={`h-full ${isDark ? 'bg-white' : 'bg-black'}`}
+                style={{ width: `${progressPercent}%` }}
+              />
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View className="flex-row gap-2">
+            <Pressable
+              onPress={onContinue}
+              className={`flex-1 flex-row items-center justify-center py-3 rounded-2xl ${
+                isDark ? 'bg-white' : 'bg-black'
+              }`}>
+              <Feather name="arrow-right" size={16} color={isDark ? '#000' : '#fff'} />
+              <Text className={`text-sm font-bold ml-2 ${isDark ? 'text-black' : 'text-white'}`}>
+                Continue
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={onDelete}
+              className={`px-4 py-3 rounded-2xl border ${
+                isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
+              }`}>
+              <Feather name="trash-2" size={16} color="#ef4444" />
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
+
+function getTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return 'yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 // ---------- Status helpers ----------
 const STATUS_CONFIG: Record<
@@ -344,19 +456,52 @@ export default function MyApplicationsScreen() {
   const { firebaseUser } = useAuthStore();
   const { applications, loading, fetchAll } = useApplicationStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [localDrafts, setLocalDrafts] = useState<ApplicationDraft[]>([]);
+  const [loadingDraft, setLoadingDraft] = useState(true);
 
   // Fetch on mount
   useEffect(() => {
     if (firebaseUser?.uid) {
       fetchAll(firebaseUser.uid);
+      loadDraft();
     }
   }, [firebaseUser?.uid]);
+
+  const loadDraft = async () => {
+    if (!firebaseUser?.uid) {
+      setLoadingDraft(false);
+      return;
+    }
+
+    try {
+      const drafts = await loadDraftsLocally(firebaseUser.uid);
+      setLocalDrafts(drafts);
+    } catch (error) {
+      console.error('Error loading drafts:', error);
+    } finally {
+      setLoadingDraft(false);
+    }
+  };
 
   const handleRefresh = async () => {
     if (!firebaseUser?.uid) return;
     setRefreshing(true);
     await fetchAll(firebaseUser.uid);
+    await loadDraft();
     setRefreshing(false);
+  };
+
+  const handleContinueDraft = (draftId: string) => {
+    router.push(`/application?continueDraft=true&draftId=${draftId}` as any);
+  };
+
+  const handleDeleteDraft = async (draftId: string) => {
+    try {
+      await deleteDraftLocally(draftId);
+      setLocalDrafts(prev => prev.filter(d => d.id !== draftId));
+    } catch (error) {
+      console.error('Error deleting draft:', error);
+    }
   };
 
   // Filter counts
@@ -369,30 +514,36 @@ export default function MyApplicationsScreen() {
   );
 
   // Filter state
-  const [filter, setFilter] = useState<'all' | ApplicationStatus>('all');
+  const [filter, setFilter] = useState<'all' | 'draft' | ApplicationStatus>('all');
 
   const filteredApps =
-    filter === 'all' ? applications : applications.filter((a) => a.status === filter);
+    filter === 'all' 
+      ? applications 
+      : filter === 'draft'
+      ? []
+      : applications.filter((a) => a.status === filter);
+
+  const filteredDrafts = filter === 'all' || filter === 'draft' ? localDrafts : [];
 
   return (
     <SafeAreaView className={`flex-1 ${isDark ? 'bg-black' : 'bg-gray-50'}`}>
       {/* Header */}
-      <View className="px-6 pt-2 pb-4">
+      <View className="px-6 py-3">
         <View className="flex-row items-center justify-between">
-          <View className="flex-row items-center">
+          <View className="flex-row items-center flex-1">
             <Pressable
               onPress={() => router.back()}
-              className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${
+              className={`w-9 h-9 rounded-full items-center justify-center mr-2.5 ${
                 isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'
               }`}>
-              <Feather name="arrow-left" size={20} color={isDark ? '#fff' : '#000'} />
+              <Feather name="arrow-left" size={18} color={isDark ? '#fff' : '#000'} />
             </Pressable>
-            <View>
-              <Text className={`text-xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+            <View className="flex-1">
+              <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                 My Applications
               </Text>
-              <Text className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                {applications.length} application{applications.length !== 1 ? 's' : ''}
+              <Text className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                {applications.length + localDrafts.length} application{(applications.length + localDrafts.length) !== 1 ? 's' : ''}
               </Text>
             </View>
           </View>
@@ -400,44 +551,55 @@ export default function MyApplicationsScreen() {
           {/* New application button */}
           <Pressable
             onPress={() => router.push('/application' as any)}
-            className={`w-10 h-10 rounded-full items-center justify-center ${
+            className={`w-9 h-9 rounded-full items-center justify-center ${
               isDark ? 'bg-white' : 'bg-black'
             }`}>
-            <Feather name="plus" size={20} color={isDark ? '#000' : '#fff'} />
+            <Feather name="plus" size={18} color={isDark ? '#000' : '#fff'} />
           </Pressable>
         </View>
       </View>
 
       {/* Filter chips */}
-      {applications.length > 0 && (
+      {(applications.length > 0 || localDrafts.length > 0) && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 12 }}>
+          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 8 }}
+          className="max-h-[42px]">
           {[
-            { key: 'all' as const, label: 'All', count: applications.length },
-            ...Object.entries(STATUS_CONFIG).map(([key, val]) => ({
-              key: key as ApplicationStatus,
-              label: val.label,
-              count: statusCounts[key] || 0,
-            })),
+            { key: 'all' as const, label: 'All', count: applications.length + localDrafts.length },
+            { key: 'draft' as const, label: 'Draft', count: localDrafts.length },
+            ...Object.entries(STATUS_CONFIG)
+              .filter(([key]) => key !== 'draft')
+              .map(([key, val]) => ({
+                key: key as ApplicationStatus,
+                label: val.label,
+                count: statusCounts[key] || 0,
+              })),
           ]
             .filter((f) => f.key === 'all' || f.count > 0)
             .map((f) => (
               <Pressable
                 key={f.key}
                 onPress={() => setFilter(f.key)}
-                className={`flex-row items-center px-4 py-2 rounded-xl mr-2 border ${
+                className={`flex-row items-center px-4 py-2.5 rounded-3xl mr-2.5 overflow-hidden ${
                   filter === f.key
                     ? isDark
-                      ? 'bg-white border-white'
-                      : 'bg-black border-black'
+                      ? 'bg-white'
+                      : 'bg-black'
                     : isDark
-                    ? 'bg-[#1a1a1a] border-[#2a2a2a]'
-                    : 'bg-white border-gray-200'
-                }`}>
+                    ? 'bg-[#111]'
+                    : 'bg-white'
+                }`}
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: isDark ? 0.3 : 0.08,
+                  shadowRadius: 8,
+                  elevation: 3,
+                }}>
                 <Text
-                  className={`text-sm font-medium ${
+                  className={`text-xs font-semibold ${
                     filter === f.key
                       ? isDark
                         ? 'text-black'
@@ -449,13 +611,13 @@ export default function MyApplicationsScreen() {
                   {f.label}
                 </Text>
                 <View
-                  className={`ml-1.5 px-1.5 py-0.5 rounded-md ${
+                  className={`ml-2 px-2 py-0.5 rounded-full ${
                     filter === f.key
                       ? isDark
                         ? 'bg-black/10'
                         : 'bg-white/20'
                       : isDark
-                      ? 'bg-[#2a2a2a]'
+                      ? 'bg-[#1a1a1a]'
                       : 'bg-gray-100'
                   }`}>
                   <Text
@@ -477,14 +639,14 @@ export default function MyApplicationsScreen() {
       )}
 
       {/* Content */}
-      {loading && applications.length === 0 ? (
+      {loading && applications.length === 0 && localDrafts.length === 0 ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
           <Text className={`mt-3 text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
             Loading applications...
           </Text>
         </View>
-      ) : applications.length === 0 ? (
+      ) : applications.length === 0 && localDrafts.length === 0 ? (
         <EmptyState isDark={isDark} onApply={() => router.push('/application' as any)} />
       ) : (
         <ScrollView
@@ -498,12 +660,34 @@ export default function MyApplicationsScreen() {
               tintColor={isDark ? '#fff' : '#000'}
             />
           }>
-          {filteredApps.length === 0 ? (
+          {/* Show draft cards first if exists */}
+          {filteredDrafts.map((draft) => (
+            <DraftCard
+              key={draft.id}
+              draft={draft}
+              isDark={isDark}
+              onContinue={() => handleContinueDraft(draft.id)}
+              onDelete={() => handleDeleteDraft(draft.id)}
+            />
+          ))}
+
+          {filteredApps.length === 0 && filteredDrafts.length === 0 && filter !== 'all' ? (
             <View className="items-center py-16">
               <Feather name="filter" size={28} color={isDark ? '#555' : '#999'} />
               <Text
                 className={`text-sm mt-3 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                 No applications with this status
+              </Text>
+              <Pressable onPress={() => setFilter('all')} className="mt-2">
+                <Text className="text-blue-500 text-sm font-medium">Show all</Text>
+              </Pressable>
+            </View>
+          ) : filteredApps.length === 0 && filter === 'draft' && filteredDrafts.length === 0 ? (
+            <View className="items-center py-16">
+              <Feather name="edit-3" size={28} color={isDark ? '#555' : '#999'} />
+              <Text
+                className={`text-sm mt-3 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                No draft applications
               </Text>
               <Pressable onPress={() => setFilter('all')} className="mt-2">
                 <Text className="text-blue-500 text-sm font-medium">Show all</Text>

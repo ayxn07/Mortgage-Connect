@@ -1,11 +1,31 @@
-import { auth, firestore } from './firebase';
+import { auth, db } from './firebase';
+import {
+  signInWithEmailAndPassword,
+  signInWithCredential,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  signOut as firebaseAuthSignOut,
+  GoogleAuthProvider,
+} from '@react-native-firebase/auth';
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  query,
+  where,
+  limit,
+  getDocs,
+  serverTimestamp,
+} from '@react-native-firebase/firestore';
 import type { User, CreateUserInput } from '../types';
 
 /**
  * Sign in with email & password.
  */
 export async function signInWithEmail(email: string, password: string) {
-  return auth().signInWithEmailAndPassword(email, password);
+  return signInWithEmailAndPassword(auth, email, password);
 }
 
 /**
@@ -35,15 +55,15 @@ export async function signInWithGoogle() {
   }
 
   // Create a Firebase Google credential with the token
-  const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+  const googleCredential = GoogleAuthProvider.credential(idToken);
 
   // Sign in to Firebase with the credential
-  const userCredential = await auth().signInWithCredential(googleCredential);
+  const userCredential = await signInWithCredential(auth, googleCredential);
 
   // Check if user document exists in Firestore
-  const userDocRef = firestore().collection('users').doc(userCredential.user.uid);
-  const userDocSnap = await userDocRef.get();
-  const isNewUser = !userDocSnap.exists;
+  const userDocRef = doc(db, 'users', userCredential.user.uid);
+  const userDocSnap = await getDoc(userDocRef);
+  const isNewUser = !userDocSnap.exists();
 
   return { isNewUser, user: userCredential.user };
 }
@@ -52,7 +72,7 @@ export async function signInWithGoogle() {
  * Create a new account and an associated Firestore user document.
  */
 export async function signUpWithEmail({ email, password, displayName, phone }: CreateUserInput) {
-  const credential = await auth().createUserWithEmailAndPassword(email, password);
+  const credential = await createUserWithEmailAndPassword(auth, email, password);
 
   // Create the companion Firestore document
   const userData: Omit<User, 'createdAt' | 'updatedAt'> = {
@@ -64,14 +84,11 @@ export async function signUpWithEmail({ email, password, displayName, phone }: C
     phone: phone ?? null,
   };
 
-  await firestore()
-    .collection('users')
-    .doc(credential.user.uid)
-    .set({
-      ...userData,
-      createdAt: firestore.FieldValue.serverTimestamp(),
-      updatedAt: firestore.FieldValue.serverTimestamp(),
-    });
+  await setDoc(doc(db, 'users', credential.user.uid), {
+    ...userData,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
 
   return credential;
 }
@@ -91,40 +108,37 @@ export async function signOut() {
   } catch {
     // Ignore Google sign-out errors — proceed with Firebase sign-out
   }
-  return auth().signOut();
+  return firebaseAuthSignOut(auth);
 }
 
 /**
  * Send a password-reset email.
  */
 export async function resetPassword(email: string) {
-  return auth().sendPasswordResetEmail(email);
+  return sendPasswordResetEmail(auth, email);
 }
 
 /**
  * Fetch the current user's Firestore document.
  */
 export async function getCurrentUserDoc(): Promise<User | null> {
-  const currentUser = auth().currentUser;
+  const currentUser = auth.currentUser;
   if (!currentUser) return null;
 
-  const doc = await firestore().collection('users').doc(currentUser.uid).get();
-  if (!doc.exists) return null;
+  const snap = await getDoc(doc(db, 'users', currentUser.uid));
+  if (!snap.exists()) return null;
 
-  return doc.data() as User;
+  return snap.data() as User;
 }
 
 /**
  * Update fields on the current user's Firestore document.
  */
 export async function updateUserDoc(uid: string, data: Partial<Omit<User, 'uid' | 'createdAt'>>) {
-  return firestore()
-    .collection('users')
-    .doc(uid)
-    .update({
-      ...data,
-      updatedAt: firestore.FieldValue.serverTimestamp(),
-    });
+  return updateDoc(doc(db, 'users', uid), {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 /**
@@ -140,14 +154,11 @@ export async function createGoogleUserDoc(uid: string, email: string, displayNam
     phone: phone ?? null,
   };
 
-  await firestore()
-    .collection('users')
-    .doc(uid)
-    .set({
-      ...userData,
-      createdAt: firestore.FieldValue.serverTimestamp(),
-      updatedAt: firestore.FieldValue.serverTimestamp(),
-    });
+  await setDoc(doc(db, 'users', uid), {
+    ...userData,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
 }
 
 /**
@@ -155,11 +166,12 @@ export async function createGoogleUserDoc(uid: string, email: string, displayNam
  * Returns null if no admin exists.
  */
 export async function getAdminUser(): Promise<User | null> {
-  const snapshot = await firestore()
-    .collection('users')
-    .where('role', '==', 'admin')
-    .limit(1)
-    .get();
+  const q = query(
+    collection(db, 'users'),
+    where('role', '==', 'admin'),
+    limit(1)
+  );
+  const snapshot = await getDocs(q);
 
   if (snapshot.empty) return null;
 

@@ -1,6 +1,5 @@
-import { Stack } from 'expo-router';
+import { Stack , useRouter } from 'expo-router';
 import { useAuthStore } from '@/src/store/authStore';
-import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 
 export default function AdminLayout() {

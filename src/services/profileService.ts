@@ -2,7 +2,14 @@
  * Profile service — handles profile image upload (Firebase Storage)
  * and profile data updates (Firestore) for all user roles.
  */
-import { storage, firestore, auth } from './firebase';
+import { storage, db, auth } from './firebase';
+import { ref, getDownloadURL } from '@react-native-firebase/storage';
+import {
+  doc,
+  updateDoc,
+  serverTimestamp,
+} from '@react-native-firebase/firestore';
+import { updateProfile as firebaseUpdateProfile } from '@react-native-firebase/auth';
 import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 import type { AgentService } from '../types/agent';
@@ -63,14 +70,14 @@ export async function pickImageFromGallery(): Promise<string | null> {
  */
 export async function uploadProfilePhoto(uid: string, localUri: string): Promise<string> {
   const filename = `profile-photos/${uid}_${Date.now()}.jpg`;
-  const ref = storage().ref(filename);
+  const storageRef = ref(storage, filename);
 
   // On Android we may get a content:// URI — Firebase RN storage handles it.
   // On iOS it's a file:// path. Both work with putFile().
   const uri = Platform.OS === 'ios' ? localUri.replace('file://', '') : localUri;
 
-  await ref.putFile(uri);
-  const downloadURL = await ref.getDownloadURL();
+  await storageRef.putFile(uri);
+  const downloadURL = await getDownloadURL(storageRef);
   return downloadURL;
 }
 
@@ -87,13 +94,10 @@ export async function updateUserProfile(
     photoURL?: string | null;
   }
 ) {
-  return firestore()
-    .collection('users')
-    .doc(uid)
-    .update({
-      ...data,
-      updatedAt: firestore.FieldValue.serverTimestamp(),
-    });
+  return updateDoc(doc(db, 'users', uid), {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 /** Update agent-specific fields (only for role === 'agent') */
@@ -115,13 +119,10 @@ export async function updateAgentProfile(
     services?: AgentService[];
   }
 ) {
-  return firestore()
-    .collection('users')
-    .doc(uid)
-    .update({
-      ...data,
-      updatedAt: firestore.FieldValue.serverTimestamp(),
-    });
+  return updateDoc(doc(db, 'users', uid), {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 /**
@@ -133,9 +134,9 @@ export async function uploadAndUpdateProfilePhoto(uid: string, localUri: string)
   await updateUserProfile(uid, { photoURL: downloadURL });
 
   // Also update Firebase Auth profile
-  const currentUser = auth().currentUser;
+  const currentUser = auth.currentUser;
   if (currentUser) {
-    await currentUser.updateProfile({ photoURL: downloadURL });
+    await firebaseUpdateProfile(currentUser, { photoURL: downloadURL });
   }
 
   return downloadURL;

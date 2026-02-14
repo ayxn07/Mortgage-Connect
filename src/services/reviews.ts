@@ -1,4 +1,17 @@
-import { firestore } from './firebase';
+import { db } from './firebase';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  setDoc,
+  query,
+  where,
+  writeBatch,
+  serverTimestamp,
+  increment,
+} from '@react-native-firebase/firestore';
 import type { Review, CreateReviewInput } from '../types';
 
 /**
@@ -10,10 +23,10 @@ export async function createReview(
   userName: string,
   input: CreateReviewInput
 ): Promise<string> {
-  const batch = firestore().batch();
+  const batch = writeBatch(db);
 
   // Create the review document
-  const reviewRef = firestore().collection('reviews').doc();
+  const reviewRef = doc(collection(db, 'reviews'));
   batch.set(reviewRef, {
     reviewId: reviewRef.id,
     agentId: input.agentId,
@@ -21,15 +34,15 @@ export async function createReview(
     userName,
     rating: input.rating,
     comment: input.comment,
-    createdAt: firestore.FieldValue.serverTimestamp(),
+    createdAt: serverTimestamp(),
   });
 
   // Update agent's review stats (increment count, recalculate avg)
-  const agentRef = firestore().collection('users').doc(input.agentId);
+  const agentRef = doc(db, 'users', input.agentId);
   batch.update(agentRef, {
-    reviewCount: firestore.FieldValue.increment(1),
-    totalReviews: firestore.FieldValue.increment(1),
-    updatedAt: firestore.FieldValue.serverTimestamp(),
+    reviewCount: increment(1),
+    totalReviews: increment(1),
+    updatedAt: serverTimestamp(),
   });
 
   await batch.commit();
@@ -44,15 +57,16 @@ export async function createReview(
  * Fetch all reviews for a given agent.
  */
 export async function fetchAgentReviews(agentId: string): Promise<Review[]> {
-  const snapshot = await firestore()
-    .collection('reviews')
-    .where('agentId', '==', agentId)
-    .get();
+  const q = query(
+    collection(db, 'reviews'),
+    where('agentId', '==', agentId)
+  );
+  const snapshot = await getDocs(q);
 
-  const reviews = snapshot.docs.map((doc) => doc.data() as Review);
-  
+  const reviews = snapshot.docs.map((d: any) => d.data() as Review);
+
   // Sort in memory to avoid needing a composite index
-  return reviews.sort((a, b) => {
+  return reviews.sort((a: any, b: any) => {
     const aTime = a.createdAt?.toMillis?.() || 0;
     const bTime = b.createdAt?.toMillis?.() || 0;
     return bTime - aTime; // desc order
@@ -69,7 +83,7 @@ async function recalculateAgentRating(agentId: string): Promise<void> {
   const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
   const avgRating = Math.round((totalRating / reviews.length) * 10) / 10;
 
-  await firestore().collection('users').doc(agentId).update({
+  await updateDoc(doc(db, 'users', agentId), {
     avgRating,
     reviewCount: reviews.length,
   });

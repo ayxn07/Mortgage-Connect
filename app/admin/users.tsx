@@ -33,8 +33,7 @@ import {
   updateUserRole,
   deleteUser,
 } from '@/src/services/adminFirestore';
-import type { User } from '@/src/types/user';
-import type { UserRole } from '@/src/types/user';
+import type { User , UserRole } from '@/src/types/user';
 import { useAuthStore } from '@/src/store/authStore';
 
 const ROLE_COLORS: Record<string, { bg: string; text: string }> = {

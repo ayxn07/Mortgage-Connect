@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,9 @@ import {
   Modal,
   Pressable,
   KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from 'nativewind';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -585,6 +586,8 @@ export default function ChatConversationScreen() {
   const params = useLocalSearchParams<{ chatId: string }>();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   const chatId = params.chatId;
 
@@ -608,6 +611,28 @@ export default function ChatConversationScreen() {
 
   const [isUploading, setIsUploading] = useState(false);
   const [showAttachmentPicker, setShowAttachmentPicker] = useState(false);
+
+  // Track keyboard visibility
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    );
+    const hideSubscription = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  // Calculate conditional bottom padding
+  const bottomPadding = isKeyboardVisible
+    ? Math.max(insets.bottom * 0.4, 8)
+    : insets.bottom;
 
   // Online status text
   const statusText = useMemo(() => {
@@ -1016,8 +1041,9 @@ export default function ChatConversationScreen() {
                 backgroundColor: isDark ? '#000' : '#fff',
                 borderTopWidth: 1,
                 borderTopColor: isDark ? '#1e1e1e' : '#f0f0f0',
-                paddingVertical: 6,
+                paddingTop: 6,
                 paddingHorizontal: 4,
+                paddingBottom: bottomPadding || 6
               }}
               primaryStyle={{
                 alignItems: 'center',

@@ -22,8 +22,8 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { Feather } from '@expo/vector-icons';
 import type { ChatListItem } from '@/src/types/chat';
 import type { User } from '@/src/types/user';
-import { formatRelativeTime } from '@/src/utils/formatters';
-import { getInitials } from '@/src/utils/formatters';
+import { formatRelativeTime , getInitials } from '@/src/utils/formatters';
+
 
 // ─── Chat List Item Component ────────────────────────────────────────────────
 
@@ -288,7 +288,7 @@ export default function ChatsScreen() {
     return (
       <SafeAreaView
         className={`flex-1 ${isDark ? 'bg-black' : 'bg-gray-50'}`}
-        edges={['top']}>
+        >
         <View className="px-6 pt-2 pb-6">
           <View className="flex-row items-center justify-between">
             <View>

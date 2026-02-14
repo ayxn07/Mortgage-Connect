@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,31 +15,28 @@ import Animated, {
   FadeIn,
   FadeInDown,
   FadeInUp,
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import {
   calculateEMI,
   calculateLTV,
-  calculateDownPaymentPercent,
   getMinDownPaymentPercent,
   calculateDBR,
+  getYearlySummary,
 } from '@/src/utils/helpers';
 import type { EMICalculationResult } from '@/src/types';
-import type { DBRResult } from '@/src/utils/helpers';
+import type { DBRResult, AmortizationYearlySummary } from '@/src/utils/helpers';
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 // =====================================================================
 // Formatters
 // =====================================================================
 function fmtAED(v: number): string {
+  if (!isFinite(v) || isNaN(v)) return 'AED 0';
   return `AED ${v.toLocaleString('en-US')}`;
 }
 function fmtShort(v: number): string {
+  if (!isFinite(v) || isNaN(v)) return 'AED 0';
   if (v >= 1_000_000) return `AED ${(v / 1_000_000).toFixed(2)}M`;
   if (v >= 1_000) return `AED ${(v / 1_000).toFixed(0)}K`;
   return `AED ${v.toLocaleString('en-US')}`;
@@ -54,9 +51,9 @@ function Chips({
   onSelect,
   isDark,
 }: {
-  items: { label: string; value: any }[];
-  selected: any;
-  onSelect: (v: any) => void;
+  items: { label: string; value: number | string }[];
+  selected: number | string;
+  onSelect: (v: number | string) => void;
   isDark: boolean;
 }) {
   return (
@@ -69,14 +66,22 @@ function Chips({
             onPress={() => onSelect(item.value)}
             className={`px-4 py-2.5 rounded-xl border ${
               active
-                ? isDark ? 'bg-white border-white' : 'bg-black border-black'
-                : isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
+                ? isDark
+                  ? 'bg-white border-white'
+                  : 'bg-black border-black'
+                : isDark
+                  ? 'bg-[#1a1a1a] border-[#2a2a2a]'
+                  : 'bg-white border-gray-200'
             }`}>
             <Text
               className={`text-sm font-semibold ${
                 active
-                  ? isDark ? 'text-black' : 'text-white'
-                  : isDark ? 'text-gray-400' : 'text-gray-600'
+                  ? isDark
+                    ? 'text-black'
+                    : 'text-white'
+                  : isDark
+                    ? 'text-gray-400'
+                    : 'text-gray-600'
               }`}>
               {item.label}
             </Text>
@@ -115,8 +120,12 @@ function Toggle({
             <Text
               className={`text-sm font-semibold ${
                 active
-                  ? isDark ? 'text-black' : 'text-white'
-                  : isDark ? 'text-gray-500' : 'text-gray-500'
+                  ? isDark
+                    ? 'text-black'
+                    : 'text-white'
+                  : isDark
+                    ? 'text-gray-500'
+                    : 'text-gray-500'
               }`}>
               {opt.label}
             </Text>
@@ -154,10 +163,13 @@ function NumInput({
 
   const handleChange = (t: string) => {
     const cleaned = t.replace(/[^0-9.]/g, '');
-    setText(cleaned);
-    const p = parseFloat(cleaned);
+    // Prevent multiple decimal points
+    const parts = cleaned.split('.');
+    const sanitized = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
+    setText(sanitized);
+    const p = parseFloat(sanitized);
     if (!isNaN(p)) onChange(p);
-    else if (cleaned === '') onChange(0);
+    else if (sanitized === '') onChange(0);
   };
 
   React.useEffect(() => {
@@ -167,15 +179,20 @@ function NumInput({
   return (
     <View className="mb-4">
       {label && (
-        <Text className={`text-sm font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+        <Text
+          className={`text-sm font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
           {label}
         </Text>
       )}
       <View
         className={`flex-row items-center rounded-2xl border px-4 ${
           focused
-            ? isDark ? 'border-white/30 bg-[#1a1a1a]' : 'border-black/20 bg-white'
-            : isDark ? 'border-[#2a2a2a] bg-[#1a1a1a]' : 'border-gray-200 bg-white'
+            ? isDark
+              ? 'border-white/30 bg-[#1a1a1a]'
+              : 'border-black/20 bg-white'
+            : isDark
+              ? 'border-[#2a2a2a] bg-[#1a1a1a]'
+              : 'border-gray-200 bg-white'
         }`}>
         {prefix && (
           <Text className={`text-sm mr-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
@@ -193,8 +210,12 @@ function NumInput({
           placeholderTextColor={isDark ? '#444' : '#ccc'}
           className={`flex-1 py-3.5 text-base font-semibold ${
             readOnly
-              ? isDark ? 'text-gray-500' : 'text-gray-400'
-              : isDark ? 'text-white' : 'text-black'
+              ? isDark
+                ? 'text-gray-500'
+                : 'text-gray-400'
+              : isDark
+                ? 'text-white'
+                : 'text-black'
           }`}
         />
         {suffix && (
@@ -232,7 +253,8 @@ function Slider({
   format: (v: number) => string;
   isDark: boolean;
 }) {
-  const pct = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
+  const range = max - min;
+  const pct = range > 0 ? Math.min(100, Math.max(0, ((value - min) / range) * 100)) : 0;
 
   return (
     <View className="mb-5">
@@ -246,7 +268,8 @@ function Slider({
       </View>
 
       {/* Track */}
-      <View className={`h-2.5 rounded-full overflow-hidden ${isDark ? 'bg-[#2a2a2a]' : 'bg-gray-200'}`}>
+      <View
+        className={`h-2.5 rounded-full overflow-hidden ${isDark ? 'bg-[#2a2a2a]' : 'bg-gray-200'}`}>
         <Animated.View
           className={`h-full rounded-full ${isDark ? 'bg-white' : 'bg-black'}`}
           style={{ width: `${pct}%` } as any}
@@ -266,15 +289,14 @@ function Slider({
         {/* Quick jumps */}
         <View className="flex-row gap-1.5">
           {[0.25, 0.5, 0.75].map((frac) => {
-            const v = Math.round((min + (max - min) * frac) / step) * step;
+            const v = Math.round((min + range * frac) / step) * step;
             return (
               <Pressable
                 key={frac}
                 onPress={() => onValueChange(v)}
-                className={`px-2.5 py-1 rounded-lg ${
-                  isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'
-                }`}>
-                <Text className={`text-[10px] font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                className={`px-2.5 py-1 rounded-lg ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'}`}>
+                <Text
+                  className={`text-[10px] font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                   {format(v)}
                 </Text>
               </Pressable>
@@ -352,22 +374,34 @@ function Metric({
     <View
       className={`rounded-2xl p-4 border ${
         big
-          ? isDark ? 'bg-white border-white' : 'bg-black border-black'
-          : isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
+          ? isDark
+            ? 'bg-white border-white'
+            : 'bg-black border-black'
+          : isDark
+            ? 'bg-[#1a1a1a] border-[#2a2a2a]'
+            : 'bg-white border-gray-200'
       }`}>
       <Text
         className={`text-xs font-medium mb-1.5 ${
           big
-            ? isDark ? 'text-black/50' : 'text-white/50'
-            : isDark ? 'text-gray-500' : 'text-gray-400'
+            ? isDark
+              ? 'text-black/50'
+              : 'text-white/50'
+            : isDark
+              ? 'text-gray-500'
+              : 'text-gray-400'
         }`}>
         {label}
       </Text>
       <Text
         className={`${big ? 'text-2xl' : 'text-lg'} font-bold ${
           big
-            ? isDark ? 'text-black' : 'text-white'
-            : isDark ? 'text-white' : 'text-black'
+            ? isDark
+              ? 'text-black'
+              : 'text-white'
+            : isDark
+              ? 'text-white'
+              : 'text-black'
         }`}>
         {value}
       </Text>
@@ -375,8 +409,12 @@ function Metric({
         <Text
           className={`text-[10px] mt-1 ${
             big
-              ? isDark ? 'text-black/40' : 'text-white/40'
-              : isDark ? 'text-gray-600' : 'text-gray-400'
+              ? isDark
+                ? 'text-black/40'
+                : 'text-white/40'
+              : isDark
+                ? 'text-gray-600'
+                : 'text-gray-400'
           }`}>
           {sub}
         </Text>
@@ -407,39 +445,75 @@ export default function CalcEMIScreen() {
   const [showDBR, setShowDBR] = useState(false);
   const [salary, setSalary] = useState(0);
   const [existingEMIs, setExistingEMIs] = useState(0);
+  const [creditCardLimits, setCreditCardLimits] = useState(0);
+
+  // Amortization toggle
+  const [showAmortization, setShowAmortization] = useState(false);
 
   // --- Derived ---
   const minDP = getMinDownPaymentPercent(buyerType === 'resident', firstTime, propertyPrice);
-  const downPayment = Math.round((propertyPrice * dpPercent) / 100);
+
+  // Auto-clamp dpPercent to minimum when buyer type or property changes
+  const effectiveDpPercent = Math.max(dpPercent, 0);
+  const downPayment = Math.round((propertyPrice * effectiveDpPercent) / 100);
   const loanAmount = Math.max(0, propertyPrice - downPayment);
   const ltv = calculateLTV(propertyPrice, downPayment);
 
+  // Clamp tenure: UAE max is 25 years
+  const effectiveTenure = Math.min(25, Math.max(1, tenure));
+
   const emi: EMICalculationResult = useMemo(() => {
-    if (propertyPrice <= 0 || tenure <= 0 || interestRate <= 0)
+    if (propertyPrice <= 0 || loanAmount <= 0) {
       return { monthlyInstallment: 0, totalPayment: 0, totalInterest: 0, principal: 0 };
-    return calculateEMI({ principal: loanAmount, annualRate: interestRate, years: tenure });
-  }, [loanAmount, interestRate, tenure, propertyPrice]);
+    }
+    return calculateEMI({
+      principal: loanAmount,
+      annualRate: interestRate,
+      years: effectiveTenure,
+    });
+  }, [loanAmount, interestRate, effectiveTenure, propertyPrice]);
 
   const dbr: DBRResult = useMemo(() => {
-    if (salary <= 0) return { dbrPercent: 0, withinGuideline: false, message: 'Enter salary' };
-    return calculateDBR({ monthlySalary: salary, existingEMIs, newEMI: emi.monthlyInstallment });
-  }, [salary, existingEMIs, emi.monthlyInstallment]);
+    if (salary <= 0) {
+      return { dbrPercent: 0, withinGuideline: false, message: 'Enter salary', availableEMI: 0 };
+    }
+    return calculateDBR({
+      monthlySalary: salary,
+      existingEMIs,
+      newEMI: emi.monthlyInstallment,
+      creditCardLimits,
+    });
+  }, [salary, existingEMIs, emi.monthlyInstallment, creditCardLimits]);
+
+  // Amortization yearly summary
+  const yearlySummary: AmortizationYearlySummary[] = useMemo(() => {
+    if (!showAmortization || loanAmount <= 0 || effectiveTenure <= 0) return [];
+    return getYearlySummary(loanAmount, interestRate, effectiveTenure);
+  }, [showAmortization, loanAmount, interestRate, effectiveTenure]);
 
   // Validation
   const errors: string[] = useMemo(() => {
     const e: string[] = [];
     if (propertyPrice <= 0) e.push('Property price must be greater than 0');
-    if (tenure <= 0) e.push('Tenure must be at least 1 year');
-    if (interestRate <= 0) e.push('Interest rate must be greater than 0');
+    if (effectiveTenure <= 0) e.push('Tenure must be at least 1 year');
+    if (interestRate < 0) e.push('Interest rate cannot be negative');
     if (downPayment > propertyPrice) e.push('Down payment exceeds property price');
+    if (effectiveDpPercent >= 100) e.push('Down payment cannot be 100% or more');
     return e;
-  }, [propertyPrice, tenure, interestRate, downPayment]);
+  }, [propertyPrice, effectiveTenure, interestRate, downPayment, effectiveDpPercent]);
 
   const valid = errors.length === 0;
 
   // Principal vs interest percentages
-  const principalPct = emi.totalPayment > 0 ? Math.round((emi.principal / emi.totalPayment) * 100) : 0;
+  const principalPct =
+    emi.totalPayment > 0 ? Math.round((emi.principal / emi.totalPayment) * 100) : 0;
   const interestPct = 100 - principalPct;
+
+  // Effective rate info for fixed-to-variable
+  const rateNote =
+    rateType === 'fixed'
+      ? `Fixed at ${interestRate}% for ${fixedPeriod} year${fixedPeriod > 1 ? 's' : ''}, then variable (EIBOR + margin)`
+      : 'Variable rate tied to EIBOR — may change quarterly';
 
   return (
     <SafeAreaView className={`flex-1 ${isDark ? 'bg-black' : 'bg-gray-50'}`}>
@@ -478,7 +552,6 @@ export default function CalcEMIScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
           <View className="px-6">
-
             {/* ===================== PROPERTY & BUYER ===================== */}
             <Section icon="home" title="Property Details" isDark={isDark} delay={100}>
               <NumInput
@@ -499,12 +572,13 @@ export default function CalcEMIScreen() {
                   { label: '5M', value: 5_000_000 },
                 ]}
                 selected={propertyPrice}
-                onSelect={setPropertyPrice}
+                onSelect={(v) => setPropertyPrice(v as number)}
                 isDark={isDark}
               />
 
               <View className="mt-5">
-                <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                <Text
+                  className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                   Buyer Type
                 </Text>
                 <Toggle
@@ -513,13 +587,14 @@ export default function CalcEMIScreen() {
                     { label: 'Non-Resident', value: 'non-resident' },
                   ]}
                   selected={buyerType}
-                  onSelect={(v) => setBuyerType(v as any)}
+                  onSelect={(v) => setBuyerType(v as 'resident' | 'non-resident')}
                   isDark={isDark}
                 />
               </View>
 
               <View className="mt-4">
-                <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                <Text
+                  className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                   First-Time Buyer?
                 </Text>
                 <Toggle
@@ -538,7 +613,7 @@ export default function CalcEMIScreen() {
             <Section icon="dollar-sign" title="Down Payment" isDark={isDark} delay={200}>
               <Slider
                 label="Down Payment"
-                value={dpPercent}
+                value={effectiveDpPercent}
                 min={0}
                 max={80}
                 step={1}
@@ -554,7 +629,8 @@ export default function CalcEMIScreen() {
                   <Text className={`text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
                     Down Payment
                   </Text>
-                  <Text className={`text-sm font-bold mt-0.5 ${isDark ? 'text-white' : 'text-black'}`}>
+                  <Text
+                    className={`text-sm font-bold mt-0.5 ${isDark ? 'text-white' : 'text-black'}`}>
                     {fmtShort(downPayment)}
                   </Text>
                 </View>
@@ -563,7 +639,8 @@ export default function CalcEMIScreen() {
                   <Text className={`text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
                     Loan Amount
                   </Text>
-                  <Text className={`text-sm font-bold mt-0.5 ${isDark ? 'text-white' : 'text-black'}`}>
+                  <Text
+                    className={`text-sm font-bold mt-0.5 ${isDark ? 'text-white' : 'text-black'}`}>
                     {fmtShort(loanAmount)}
                   </Text>
                 </View>
@@ -575,17 +652,20 @@ export default function CalcEMIScreen() {
                   isDark ? 'bg-[#0d0d0d]' : 'bg-gray-50'
                 }`}>
                 <Feather name="info" size={11} color={isDark ? '#555' : '#aaa'} />
-                <Text className={`ml-1.5 text-[11px] flex-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                <Text
+                  className={`ml-1.5 text-[11px] flex-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                   Min. {minDP}% for {buyerType === 'resident' ? 'residents' : 'non-residents'}
-                  {firstTime ? ' (first home)' : ''} = {fmtAED(Math.round(propertyPrice * minDP / 100))}
+                  {firstTime ? ' (first home)' : ''} ={' '}
+                  {fmtAED(Math.round((propertyPrice * minDP) / 100))}
                 </Text>
               </View>
 
-              {dpPercent < minDP && dpPercent > 0 && (
+              {effectiveDpPercent < minDP && effectiveDpPercent > 0 && (
                 <View className="flex-row items-center mt-2">
                   <Feather name="alert-triangle" size={11} color="#f59e0b" />
                   <Text className="ml-1.5 text-[11px] text-amber-500">
-                    Below minimum — banks may not approve
+                    Below minimum ({minDP}%) — banks may not approve. Consider increasing to at
+                    least {fmtAED(Math.round((propertyPrice * minDP) / 100))}
                   </Text>
                 </View>
               )}
@@ -596,7 +676,8 @@ export default function CalcEMIScreen() {
                   isDark ? 'bg-[#1a1a1a]' : 'bg-gray-50'
                 }`}>
                 <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>LTV</Text>
-                <Text className={`text-sm font-bold ${ltv <= 80 ? 'text-green-500' : 'text-amber-500'}`}>
+                <Text
+                  className={`text-sm font-bold ${ltv <= 80 ? 'text-green-500' : 'text-amber-500'}`}>
                   {ltv}%
                 </Text>
               </View>
@@ -607,9 +688,10 @@ export default function CalcEMIScreen() {
               <NumInput
                 label="Interest Rate"
                 value={interestRate}
-                onChange={setInterestRate}
+                onChange={(v) => setInterestRate(Math.max(0, v))}
                 isDark={isDark}
                 suffix="% p.a."
+                hint={interestRate === 0 ? 'Islamic / interest-free finance' : undefined}
               />
               <Chips
                 items={[
@@ -619,15 +701,15 @@ export default function CalcEMIScreen() {
                   { label: '5.25%', value: 5.25 },
                 ]}
                 selected={interestRate}
-                onSelect={setInterestRate}
+                onSelect={(v) => setInterestRate(v as number)}
                 isDark={isDark}
               />
 
               <View className="mt-5">
                 <Slider
                   label="Loan Tenure"
-                  value={tenure}
-                  min={5}
+                  value={effectiveTenure}
+                  min={1}
                   max={25}
                   step={1}
                   onValueChange={setTenure}
@@ -636,7 +718,8 @@ export default function CalcEMIScreen() {
                 />
               </View>
 
-              <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              <Text
+                className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                 Rate Type
               </Text>
               <Toggle
@@ -645,12 +728,13 @@ export default function CalcEMIScreen() {
                   { label: 'Variable', value: 'variable' },
                 ]}
                 selected={rateType}
-                onSelect={(v) => setRateType(v as any)}
+                onSelect={(v) => setRateType(v as 'fixed' | 'variable')}
                 isDark={isDark}
               />
               {rateType === 'fixed' && (
                 <Animated.View entering={FadeInDown.duration(250)} className="mt-3">
-                  <Text className={`text-xs mb-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  <Text
+                    className={`text-xs mb-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                     Fixed period
                   </Text>
                   <Chips
@@ -661,11 +745,28 @@ export default function CalcEMIScreen() {
                       { label: '5 yrs', value: 5 },
                     ]}
                     selected={fixedPeriod}
-                    onSelect={setFixedPeriod}
+                    onSelect={(v) => setFixedPeriod(v as number)}
                     isDark={isDark}
                   />
                 </Animated.View>
               )}
+
+              {/* Rate info note */}
+              <View
+                className={`flex-row items-start mt-3 px-3 py-2.5 rounded-xl ${
+                  isDark ? 'bg-[#0d0d0d]' : 'bg-gray-50'
+                }`}>
+                <Feather
+                  name="info"
+                  size={11}
+                  color={isDark ? '#555' : '#aaa'}
+                  style={{ marginTop: 2 }}
+                />
+                <Text
+                  className={`ml-1.5 text-[11px] flex-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  {rateNote}
+                </Text>
+              </View>
             </Section>
 
             {/* ===================== DBR ACCORDION ===================== */}
@@ -676,14 +777,16 @@ export default function CalcEMIScreen() {
                   isDark ? 'bg-[#111] border-[#1e1e1e]' : 'bg-white border-gray-100'
                 }`}>
                 <View className="flex-row items-center">
-                  <View className={`w-8 h-8 rounded-xl items-center justify-center mr-2.5 ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-50'}`}>
+                  <View
+                    className={`w-8 h-8 rounded-xl items-center justify-center mr-2.5 ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-50'}`}>
                     <Feather name="sliders" size={15} color={isDark ? '#fff' : '#000'} />
                   </View>
                   <View>
                     <Text className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                       Income & DBR
                     </Text>
-                    <Text className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                    <Text
+                      className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
                       Optional — check debt burden ratio
                     </Text>
                   </View>
@@ -713,29 +816,43 @@ export default function CalcEMIScreen() {
                     onChange={setExistingEMIs}
                     isDark={isDark}
                     prefix="AED"
-                    hint="Car loans, cards, personal loans, etc."
+                    hint="Car loans, personal loans, etc."
+                  />
+                  <NumInput
+                    label="Total Credit Card Limits"
+                    value={creditCardLimits}
+                    onChange={setCreditCardLimits}
+                    isDark={isDark}
+                    prefix="AED"
+                    hint="Banks count 5% of total limit as monthly obligation"
                   />
                   {salary > 0 && (
                     <Animated.View entering={FadeIn.duration(300)}>
                       <View
                         className={`rounded-xl p-4 ${isDark ? 'bg-[#0d0d0d]' : 'bg-gray-50'}`}>
                         <View className="flex-row items-center justify-between mb-2">
-                          <Text className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <Text
+                            className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                             DBR
                           </Text>
                           <Text
                             className="text-lg font-bold"
-                            style={{ color: dbr.withinGuideline ? '#22c55e' : '#ef4444' }}>
+                            style={{
+                              color: dbr.withinGuideline ? '#22c55e' : '#ef4444',
+                            }}>
                             {dbr.dbrPercent}%
                           </Text>
                         </View>
-                        <View className={`h-2.5 rounded-full overflow-hidden ${isDark ? 'bg-[#2a2a2a]' : 'bg-gray-200'}`}>
+                        <View
+                          className={`h-2.5 rounded-full overflow-hidden ${isDark ? 'bg-[#2a2a2a]' : 'bg-gray-200'}`}>
                           <View
                             className="h-full rounded-full"
-                            style={{
-                              width: `${Math.min(100, dbr.dbrPercent)}%`,
-                              backgroundColor: dbr.withinGuideline ? '#22c55e' : '#ef4444',
-                            } as any}
+                            style={
+                              {
+                                width: `${Math.min(100, dbr.dbrPercent)}%`,
+                                backgroundColor: dbr.withinGuideline ? '#22c55e' : '#ef4444',
+                              } as any
+                            }
                           />
                         </View>
                         <View className="flex-row items-center mt-2">
@@ -744,10 +861,20 @@ export default function CalcEMIScreen() {
                             size={12}
                             color={dbr.withinGuideline ? '#22c55e' : '#ef4444'}
                           />
-                          <Text className={`ml-1.5 text-[11px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                          <Text
+                            className={`ml-1.5 text-[11px] flex-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                             {dbr.message}
                           </Text>
                         </View>
+                        {dbr.availableEMI > 0 && (
+                          <View className="flex-row items-center mt-2">
+                            <Feather name="arrow-right" size={10} color={isDark ? '#555' : '#aaa'} />
+                            <Text
+                              className={`ml-1.5 text-[11px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                              Max additional EMI capacity: {fmtAED(dbr.availableEMI)}/mo
+                            </Text>
+                          </View>
+                        )}
                       </View>
                     </Animated.View>
                   )}
@@ -770,7 +897,7 @@ export default function CalcEMIScreen() {
             )}
 
             {/* ===================== RESULTS ===================== */}
-            {valid && (
+            {valid && emi.monthlyInstallment > 0 && (
               <Animated.View entering={FadeInUp.delay(400).duration(400)}>
                 {/* Section label */}
                 <View className="mb-3">
@@ -783,7 +910,7 @@ export default function CalcEMIScreen() {
                 <Metric
                   label="Monthly EMI"
                   value={fmtAED(emi.monthlyInstallment)}
-                  sub={`${tenure} years · ${tenure * 12} months`}
+                  sub={`${effectiveTenure} years · ${effectiveTenure * 12} months`}
                   big
                   isDark={isDark}
                 />
@@ -794,13 +921,21 @@ export default function CalcEMIScreen() {
                     <Metric label="Loan Amount" value={fmtShort(loanAmount)} isDark={isDark} />
                   </View>
                   <View className="flex-1">
-                    <Metric label="Total Interest" value={fmtShort(emi.totalInterest)} isDark={isDark} />
+                    <Metric
+                      label="Total Interest"
+                      value={fmtShort(emi.totalInterest)}
+                      isDark={isDark}
+                    />
                   </View>
                 </View>
 
                 <View className="flex-row gap-3 mt-3">
                   <View className="flex-1">
-                    <Metric label="Total Payment" value={fmtShort(emi.totalPayment)} isDark={isDark} />
+                    <Metric
+                      label="Total Payment"
+                      value={fmtShort(emi.totalPayment)}
+                      isDark={isDark}
+                    />
                   </View>
                   <View className="flex-1">
                     <Metric
@@ -812,13 +947,45 @@ export default function CalcEMIScreen() {
                   </View>
                 </View>
 
+                {/* Interest-to-loan ratio */}
+                <View className="flex-row gap-3 mt-3">
+                  <View className="flex-1">
+                    <Metric
+                      label="Interest / Loan"
+                      value={
+                        loanAmount > 0
+                          ? `${Math.round((emi.totalInterest / loanAmount) * 100)}%`
+                          : '0%'
+                      }
+                      sub="Total interest as % of loan"
+                      isDark={isDark}
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <Metric
+                      label="Cost per Lakh"
+                      value={
+                        loanAmount > 0
+                          ? fmtAED(
+                              Math.round((emi.monthlyInstallment / loanAmount) * 100_000)
+                            )
+                          : 'N/A'
+                      }
+                      sub="EMI per AED 100K borrowed"
+                      isDark={isDark}
+                    />
+                  </View>
+                </View>
+
                 {/* DBR metric if available */}
                 {salary > 0 && showDBR && (
                   <View className="mt-3">
                     <Metric
                       label="Debt Burden Ratio"
                       value={`${dbr.dbrPercent}%`}
-                      sub={dbr.withinGuideline ? 'Within guideline (≤50%)' : 'Above 50% — risky'}
+                      sub={
+                        dbr.withinGuideline ? 'Within guideline (<=50%)' : 'Above 50% — risky'
+                      }
                       isDark={isDark}
                     />
                   </View>
@@ -830,7 +997,8 @@ export default function CalcEMIScreen() {
                     className={`rounded-2xl p-4 mt-3 border ${
                       isDark ? 'bg-[#111] border-[#1e1e1e]' : 'bg-white border-gray-100'
                     }`}>
-                    <Text className={`text-xs font-medium mb-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <Text
+                      className={`text-xs font-medium mb-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                       Payment Breakdown
                     </Text>
                     <View className="h-4 rounded-full overflow-hidden flex-row">
@@ -845,20 +1013,118 @@ export default function CalcEMIScreen() {
                     </View>
                     <View className="flex-row items-center justify-between mt-2.5">
                       <View className="flex-row items-center">
-                        <View className={`w-2.5 h-2.5 rounded-full mr-1.5 ${isDark ? 'bg-white' : 'bg-black'}`} />
-                        <Text className={`text-[11px] ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <View
+                          className={`w-2.5 h-2.5 rounded-full mr-1.5 ${isDark ? 'bg-white' : 'bg-black'}`}
+                        />
+                        <Text
+                          className={`text-[11px] ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                           Principal {principalPct}%
                         </Text>
                       </View>
                       <View className="flex-row items-center">
                         <View className="w-2.5 h-2.5 rounded-full mr-1.5 bg-gray-400" />
-                        <Text className={`text-[11px] ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <Text
+                          className={`text-[11px] ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                           Interest {interestPct}%
                         </Text>
                       </View>
                     </View>
                   </View>
                 </Animated.View>
+
+                {/* ===================== AMORTIZATION ===================== */}
+                <Animated.View entering={FadeInUp.delay(520).duration(400)}>
+                  <Pressable
+                    onPress={() => setShowAmortization(!showAmortization)}
+                    className={`rounded-2xl px-4 py-3.5 mt-3 border flex-row items-center justify-between ${
+                      isDark ? 'bg-[#111] border-[#1e1e1e]' : 'bg-white border-gray-100'
+                    }`}>
+                    <View className="flex-row items-center">
+                      <Feather name="list" size={14} color={isDark ? '#fff' : '#000'} />
+                      <Text
+                        className={`ml-2 text-sm font-semibold ${isDark ? 'text-white' : 'text-black'}`}>
+                        Year-by-Year Schedule
+                      </Text>
+                    </View>
+                    <Feather
+                      name={showAmortization ? 'chevron-up' : 'chevron-down'}
+                      size={16}
+                      color={isDark ? '#555' : '#999'}
+                    />
+                  </Pressable>
+                </Animated.View>
+
+                {showAmortization && yearlySummary.length > 0 && (
+                  <Animated.View entering={FadeInDown.duration(300)}>
+                    <View
+                      className={`rounded-2xl p-4 mt-2 border ${
+                        isDark ? 'bg-[#111] border-[#1e1e1e]' : 'bg-white border-gray-100'
+                      }`}>
+                      {/* Table Header */}
+                      <View className="flex-row items-center pb-2 mb-1">
+                        <View style={{ width: 40 }}>
+                          <Text
+                            className={`text-[10px] font-bold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                            Year
+                          </Text>
+                        </View>
+                        <View className="flex-1 items-center">
+                          <Text
+                            className={`text-[10px] font-bold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                            Principal
+                          </Text>
+                        </View>
+                        <View className="flex-1 items-center">
+                          <Text
+                            className={`text-[10px] font-bold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                            Interest
+                          </Text>
+                        </View>
+                        <View className="flex-1 items-end">
+                          <Text
+                            className={`text-[10px] font-bold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                            Balance
+                          </Text>
+                        </View>
+                      </View>
+                      <View className={`h-px ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'}`} />
+
+                      {yearlySummary.map((row) => (
+                        <View key={row.year}>
+                          <View className="flex-row items-center py-2">
+                            <View style={{ width: 40 }}>
+                              <Text
+                                className={`text-xs font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                {row.year}
+                              </Text>
+                            </View>
+                            <View className="flex-1 items-center">
+                              <Text
+                                className={`text-[10px] font-medium ${isDark ? 'text-white' : 'text-black'}`}>
+                                {fmtShort(row.totalPrincipal)}
+                              </Text>
+                            </View>
+                            <View className="flex-1 items-center">
+                              <Text
+                                className={`text-[10px] font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                {fmtShort(row.totalInterest)}
+                              </Text>
+                            </View>
+                            <View className="flex-1 items-end">
+                              <Text
+                                className={`text-[10px] font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                                {fmtShort(row.closingBalance)}
+                              </Text>
+                            </View>
+                          </View>
+                          <View
+                            className={`h-px ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-50'}`}
+                          />
+                        </View>
+                      ))}
+                    </View>
+                  </Animated.View>
+                )}
 
                 {/* CTAs */}
                 <Animated.View entering={FadeInUp.delay(600).duration(400)} className="mt-5">
@@ -868,7 +1134,8 @@ export default function CalcEMIScreen() {
                       isDark ? 'bg-white' : 'bg-black'
                     }`}>
                     <Feather name="check-circle" size={16} color={isDark ? '#000' : '#fff'} />
-                    <Text className={`ml-2 text-base font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+                    <Text
+                      className={`ml-2 text-base font-bold ${isDark ? 'text-black' : 'text-white'}`}>
                       Start Pre-Approval
                     </Text>
                   </Pressable>
@@ -880,7 +1147,8 @@ export default function CalcEMIScreen() {
                         isDark ? 'border-[#222] bg-[#111]' : 'border-gray-200 bg-white'
                       }`}>
                       <Feather name="message-circle" size={14} color={isDark ? '#fff' : '#000'} />
-                      <Text className={`ml-1.5 text-sm font-semibold ${isDark ? 'text-white' : 'text-black'}`}>
+                      <Text
+                        className={`ml-1.5 text-sm font-semibold ${isDark ? 'text-white' : 'text-black'}`}>
                         Talk to Advisor
                       </Text>
                     </Pressable>
@@ -890,7 +1158,8 @@ export default function CalcEMIScreen() {
                         isDark ? 'border-[#222] bg-[#111]' : 'border-gray-200 bg-white'
                       }`}>
                       <Feather name="file-text" size={14} color={isDark ? '#fff' : '#000'} />
-                      <Text className={`ml-1.5 text-sm font-semibold ${isDark ? 'text-white' : 'text-black'}`}>
+                      <Text
+                        className={`ml-1.5 text-sm font-semibold ${isDark ? 'text-white' : 'text-black'}`}>
                         Upfront Costs
                       </Text>
                     </Pressable>
@@ -899,9 +1168,16 @@ export default function CalcEMIScreen() {
 
                 {/* Disclaimer */}
                 <View className="flex-row items-start mt-5 mb-2">
-                  <Feather name="info" size={11} color={isDark ? '#444' : '#bbb'} style={{ marginTop: 2 }} />
-                  <Text className={`ml-2 text-[11px] leading-4 flex-1 ${isDark ? 'text-gray-700' : 'text-gray-400'}`}>
-                    This is an estimate. Actual EMI depends on the bank, your credit score, and property type.
+                  <Feather
+                    name="info"
+                    size={11}
+                    color={isDark ? '#444' : '#bbb'}
+                    style={{ marginTop: 2 }}
+                  />
+                  <Text
+                    className={`ml-2 text-[11px] leading-4 flex-1 ${isDark ? 'text-gray-700' : 'text-gray-400'}`}>
+                    This is an estimate. Actual EMI depends on the bank, your credit score, and
+                    property type. UAE max mortgage tenure is 25 years.
                   </Text>
                 </View>
               </Animated.View>

@@ -18,12 +18,13 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { calculateUpfrontCosts, getMinDownPaymentPercent } from '@/src/utils/helpers';
-import type { Emirate } from '@/src/utils/helpers';
+import type { Emirate, PropertyReadinessType } from '@/src/utils/helpers';
 
 // =====================================================================
 // Formatters
 // =====================================================================
 function fmtAED(v: number): string {
+  if (!isFinite(v) || isNaN(v)) return 'AED 0';
   return `AED ${v.toLocaleString('en-US')}`;
 }
 
@@ -51,7 +52,12 @@ function NumInput({
   const [focused, setFocused] = useState(false);
 
   const handleChange = (t: string) => {
-    const cleaned = t.replace(/[^0-9.]/g, '');
+    // Prevent multiple decimal points
+    let cleaned = t.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    if (parts.length > 2) {
+      cleaned = parts[0] + '.' + parts.slice(1).join('');
+    }
     setText(cleaned);
     const p = parseFloat(cleaned);
     if (!isNaN(p)) onChange(p);
@@ -100,15 +106,15 @@ function NumInput({
 // =====================================================================
 // Chips
 // =====================================================================
-function Chips({
+function Chips<T extends string | number>({
   items,
   selected,
   onSelect,
   isDark,
 }: {
-  items: { label: string; value: any }[];
-  selected: any;
-  onSelect: (v: any) => void;
+  items: { label: string; value: T }[];
+  selected: T;
+  onSelect: (v: T) => void;
   isDark: boolean;
 }) {
   return (
@@ -173,6 +179,51 @@ function Section({
 }
 
 // =====================================================================
+// Toggle
+// =====================================================================
+function Toggle({
+  label,
+  value,
+  onToggle,
+  isDark,
+  hint,
+}: {
+  label: string;
+  value: boolean;
+  onToggle: () => void;
+  isDark: boolean;
+  hint?: string;
+}) {
+  return (
+    <View className="mb-3">
+      <View className="flex-row items-center justify-between">
+        <View className="flex-1 mr-3">
+          <Text className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{label}</Text>
+          {hint && (
+            <Text className={`text-[10px] mt-0.5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{hint}</Text>
+          )}
+        </View>
+        <Pressable
+          onPress={onToggle}
+          className={`w-12 h-7 rounded-full justify-center px-1 ${
+            value
+              ? isDark ? 'bg-white' : 'bg-black'
+              : isDark ? 'bg-[#2a2a2a]' : 'bg-gray-300'
+          }`}>
+          <View
+            className={`w-5 h-5 rounded-full ${
+              value
+                ? isDark ? 'bg-black self-end' : 'bg-white self-end'
+                : isDark ? 'bg-gray-600 self-start' : 'bg-white self-start'
+            }`}
+          />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+// =====================================================================
 // Fee Row
 // =====================================================================
 function FeeRow({
@@ -206,6 +257,13 @@ function FeeRow({
 }
 
 // =====================================================================
+// Divider
+// =====================================================================
+function Divider({ isDark }: { isDark: boolean }) {
+  return <View className={`h-px ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'}`} />;
+}
+
+// =====================================================================
 // MAIN
 // =====================================================================
 export default function CalcCostsScreen() {
@@ -213,25 +271,59 @@ export default function CalcCostsScreen() {
   const isDark = colorScheme === 'dark';
   const router = useRouter();
 
+  // --- Inputs ---
   const [propertyPrice, setPropertyPrice] = useState(1_500_000);
   const [dpPercent, setDpPercent] = useState(20);
   const [emirate, setEmirate] = useState<Emirate>('dubai');
+  const [propertyReadiness, setPropertyReadiness] = useState<PropertyReadinessType>('ready');
   const [agentCommPct, setAgentCommPct] = useState(2);
   const [includeVAT, setIncludeVAT] = useState(true);
   const [valuationFee, setValuationFee] = useState(3_000);
+  const [isResident, setIsResident] = useState(true);
+  const [isFirstTimeBuyer, setIsFirstTimeBuyer] = useState(true);
 
-  const downPayment = Math.round((propertyPrice * dpPercent) / 100);
+  // --- Derived values ---
+  const minDP = getMinDownPaymentPercent(isResident, isFirstTimeBuyer, propertyPrice);
+  const effectiveDpPercent = Math.max(dpPercent, minDP);
+  const downPayment = Math.round((propertyPrice * effectiveDpPercent) / 100);
   const loanAmount = Math.max(0, propertyPrice - downPayment);
 
   const costs = useMemo(() => {
+    if (propertyPrice <= 0) {
+      return {
+        dldFee: 0, mortgageRegistration: 0, valuationFee: 0,
+        bankProcessingFee: 0, agentCommission: 0, trusteeFee: 0,
+        adminFee: 0, oqoodFee: 0, vat: 0, totalFees: 0, totalUpfrontCash: 0,
+      };
+    }
     return calculateUpfrontCosts(
-      { propertyPrice, loanAmount, emirate, agentCommissionPercent: agentCommPct, includeVAT, valuationFee },
+      {
+        propertyPrice,
+        loanAmount,
+        emirate,
+        agentCommissionPercent: agentCommPct,
+        includeVAT,
+        valuationFee,
+        propertyReadiness,
+      },
       downPayment
     );
-  }, [propertyPrice, loanAmount, emirate, agentCommPct, includeVAT, valuationFee, downPayment]);
+  }, [propertyPrice, loanAmount, emirate, agentCommPct, includeVAT, valuationFee, downPayment, propertyReadiness]);
 
-  const transferLabel = emirate === 'dubai' ? 'DLD Transfer Fee (4%)' : emirate === 'abu_dhabi' ? 'Transfer Fee (2%)' : 'Transfer Fee (4%)';
-  const mortgageRegLabel = emirate === 'abu_dhabi' ? 'Mortgage Registration (0.1%)' : 'Mortgage Registration (0.25%)';
+  // --- Labels ---
+  const transferLabel = emirate === 'abu_dhabi'
+    ? 'Transfer Fee (2%)'
+    : 'DLD Transfer Fee (4%)';
+  const mortgageRegLabel = emirate === 'abu_dhabi'
+    ? 'Mortgage Registration (0.1%)'
+    : `Mortgage Registration (0.25%)${emirate === 'dubai' ? ' + AED 290' : ''}`;
+
+  const isOffPlanDubai = emirate === 'dubai' && propertyReadiness === 'off_plan';
+
+  // Fees as % of property price
+  const feesPercent = propertyPrice > 0
+    ? ((costs.totalFees / propertyPrice) * 100).toFixed(1)
+    : '0.0';
 
   return (
     <SafeAreaView className={`flex-1 ${isDark ? 'bg-black' : 'bg-gray-50'}`}>
@@ -296,11 +388,42 @@ export default function CalcCostsScreen() {
                 <NumInput
                   label="Down Payment"
                   value={dpPercent}
-                  onChange={setDpPercent}
+                  onChange={(v) => setDpPercent(Math.max(0, Math.min(99, v)))}
                   isDark={isDark}
                   suffix="%"
+                  hint={
+                    dpPercent < minDP
+                      ? `Min ${minDP}% required for ${isResident ? 'resident' : 'non-resident'} — auto-adjusted`
+                      : `Down payment: ${fmtAED(downPayment)}`
+                  }
                 />
               </View>
+
+              {/* Buyer Type */}
+              <View className="mb-3">
+                <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Buyer Type
+                </Text>
+                <Chips
+                  items={[
+                    { label: 'Resident', value: 'resident' },
+                    { label: 'Non-Resident', value: 'non_resident' },
+                  ]}
+                  selected={isResident ? 'resident' : 'non_resident'}
+                  onSelect={(v) => setIsResident(v === 'resident')}
+                  isDark={isDark}
+                />
+              </View>
+
+              {isResident && (
+                <Toggle
+                  label="First-time buyer"
+                  value={isFirstTimeBuyer}
+                  onToggle={() => setIsFirstTimeBuyer(!isFirstTimeBuyer)}
+                  isDark={isDark}
+                  hint="First property in UAE (lower DP required)"
+                />
+              )}
 
               {/* Emirate */}
               <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -308,15 +431,38 @@ export default function CalcCostsScreen() {
               </Text>
               <Chips
                 items={[
-                  { label: 'Dubai', value: 'dubai' },
-                  { label: 'Abu Dhabi', value: 'abu_dhabi' },
-                  { label: 'Sharjah', value: 'sharjah' },
-                  { label: 'Other', value: 'other' },
+                  { label: 'Dubai', value: 'dubai' as Emirate },
+                  { label: 'Abu Dhabi', value: 'abu_dhabi' as Emirate },
+                  { label: 'Sharjah', value: 'sharjah' as Emirate },
+                  { label: 'Other', value: 'other' as Emirate },
                 ]}
                 selected={emirate}
-                onSelect={setEmirate}
+                onSelect={(v) => setEmirate(v as Emirate)}
                 isDark={isDark}
               />
+
+              {/* Property Readiness (Dubai only) */}
+              {emirate === 'dubai' && (
+                <View className="mt-3">
+                  <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Property Status
+                  </Text>
+                  <Chips
+                    items={[
+                      { label: 'Ready', value: 'ready' as PropertyReadinessType },
+                      { label: 'Off-Plan', value: 'off_plan' as PropertyReadinessType },
+                    ]}
+                    selected={propertyReadiness}
+                    onSelect={(v) => setPropertyReadiness(v as PropertyReadinessType)}
+                    isDark={isDark}
+                  />
+                  {propertyReadiness === 'off_plan' && (
+                    <Text className={`text-[11px] mt-1.5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                      Off-plan: Oqood registration fee (4%) replaces DLD transfer fee
+                    </Text>
+                  )}
+                </View>
+              )}
             </Section>
 
             {/* Fee Options */}
@@ -324,7 +470,7 @@ export default function CalcCostsScreen() {
               <NumInput
                 label="Agent Commission"
                 value={agentCommPct}
-                onChange={setAgentCommPct}
+                onChange={(v) => setAgentCommPct(Math.max(0, Math.min(10, v)))}
                 isDark={isDark}
                 suffix="%"
                 hint="Typically 2% of property price"
@@ -335,30 +481,17 @@ export default function CalcCostsScreen() {
                 onChange={setValuationFee}
                 isDark={isDark}
                 prefix="AED"
-                hint="Typically AED 2,500 – 3,500"
+                hint="Typically AED 2,500 - 3,500"
               />
 
               {/* VAT Toggle */}
-              <View className="flex-row items-center justify-between mt-2">
-                <Text className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Include 5% VAT on fees
-                </Text>
-                <Pressable
-                  onPress={() => setIncludeVAT(!includeVAT)}
-                  className={`w-12 h-7 rounded-full justify-center px-1 ${
-                    includeVAT
-                      ? isDark ? 'bg-white' : 'bg-black'
-                      : isDark ? 'bg-[#2a2a2a]' : 'bg-gray-300'
-                  }`}>
-                  <View
-                    className={`w-5 h-5 rounded-full ${
-                      includeVAT
-                        ? isDark ? 'bg-black self-end' : 'bg-white self-end'
-                        : isDark ? 'bg-gray-600 self-start' : 'bg-white self-start'
-                    }`}
-                  />
-                </Pressable>
-              </View>
+              <Toggle
+                label="Include 5% VAT on fees"
+                value={includeVAT}
+                onToggle={() => setIncludeVAT(!includeVAT)}
+                isDark={isDark}
+                hint="VAT on bank processing, valuation, commission & trustee"
+              />
             </Section>
 
             {/* Results: Fee Breakdown */}
@@ -367,25 +500,112 @@ export default function CalcCostsScreen() {
                 <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                   Cost Breakdown
                 </Text>
+                <Text className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Total fees are ~{feesPercent}% of property price
+                </Text>
               </View>
 
               <View
                 className={`rounded-3xl p-5 mb-4 border ${
                   isDark ? 'bg-[#111] border-[#1e1e1e]' : 'bg-white border-gray-100'
                 }`}>
-                <FeeRow label={transferLabel} value={costs.dldFee} note="Paid to land department" isDark={isDark} />
-                <View className={`h-px ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'}`} />
-                <FeeRow label={mortgageRegLabel} value={costs.mortgageRegistration} note="Paid to land department" isDark={isDark} />
-                <View className={`h-px ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'}`} />
-                <FeeRow label="Valuation Fee" value={costs.valuationFee} isDark={isDark} />
-                <View className={`h-px ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'}`} />
-                <FeeRow label="Bank Processing Fee (1%)" value={costs.bankProcessingFee} note="Min ~AED 5,000 in practice" isDark={isDark} />
-                <View className={`h-px ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'}`} />
-                <FeeRow label={`Agent Commission (${agentCommPct}%)`} value={costs.agentCommission} isDark={isDark} />
-                {includeVAT && (
+
+                {/* Government Fees Section */}
+                <Text className={`text-xs font-bold mb-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  GOVERNMENT FEES
+                </Text>
+
+                {/* DLD Transfer Fee or Oqood */}
+                {isOffPlanDubai ? (
+                  <FeeRow
+                    label="Oqood Fee (4%)"
+                    value={costs.oqoodFee}
+                    note="Off-plan registration — Dubai Land Department"
+                    isDark={isDark}
+                  />
+                ) : (
+                  <FeeRow
+                    label={transferLabel}
+                    value={costs.dldFee}
+                    note="Paid to land department"
+                    isDark={isDark}
+                  />
+                )}
+                <Divider isDark={isDark} />
+
+                <FeeRow
+                  label={mortgageRegLabel}
+                  value={costs.mortgageRegistration}
+                  note="Paid to land department"
+                  isDark={isDark}
+                />
+
+                {/* Admin Fee (Dubai) */}
+                {costs.adminFee > 0 && (
                   <>
-                    <View className={`h-px ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'}`} />
-                    <FeeRow label="VAT (5%)" value={costs.vat} note="On processing, valuation & commission" isDark={isDark} />
+                    <Divider isDark={isDark} />
+                    <FeeRow
+                      label="DLD Admin / Knowledge Fee"
+                      value={costs.adminFee}
+                      note="Fixed AED 580 (Dubai)"
+                      isDark={isDark}
+                    />
+                  </>
+                )}
+
+                {/* Trustee Fee (Dubai) */}
+                {costs.trusteeFee > 0 && (
+                  <>
+                    <Divider isDark={isDark} />
+                    <FeeRow
+                      label="Trustee / Conveyancer Fee"
+                      value={costs.trusteeFee}
+                      note={`${propertyPrice <= 500_000 ? 'AED 2,000' : 'AED 4,000'} (Dubai) + VAT if applicable`}
+                      isDark={isDark}
+                    />
+                  </>
+                )}
+
+                {/* Bank & Service Fees Section */}
+                <View className="mt-3 mb-2">
+                  <Text className={`text-xs font-bold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    BANK & SERVICE FEES
+                  </Text>
+                </View>
+
+                <FeeRow
+                  label="Bank Processing Fee (1%)"
+                  value={costs.bankProcessingFee}
+                  note={loanAmount > 0 && costs.bankProcessingFee === 5_000
+                    ? 'Min AED 5,000 applied'
+                    : 'Min AED 5,000 in practice'}
+                  isDark={isDark}
+                />
+                <Divider isDark={isDark} />
+
+                <FeeRow
+                  label="Valuation Fee"
+                  value={costs.valuationFee}
+                  isDark={isDark}
+                />
+                <Divider isDark={isDark} />
+
+                <FeeRow
+                  label={`Agent Commission (${agentCommPct}%)`}
+                  value={costs.agentCommission}
+                  isDark={isDark}
+                />
+
+                {/* VAT */}
+                {includeVAT && costs.vat > 0 && (
+                  <>
+                    <Divider isDark={isDark} />
+                    <FeeRow
+                      label="VAT (5%)"
+                      value={costs.vat}
+                      note="On bank processing, valuation, commission & trustee"
+                      isDark={isDark}
+                    />
                   </>
                 )}
 
@@ -421,7 +641,7 @@ export default function CalcCostsScreen() {
                     {fmtAED(downPayment)}
                   </Text>
                   <Text className={`text-[10px] mt-0.5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
-                    {dpPercent}% of property
+                    {effectiveDpPercent}% of property
                   </Text>
                 </View>
                 <View
@@ -433,10 +653,32 @@ export default function CalcCostsScreen() {
                     {fmtAED(loanAmount)}
                   </Text>
                   <Text className={`text-[10px] mt-0.5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
-                    {100 - dpPercent}% financed
+                    {100 - effectiveDpPercent}% financed
                   </Text>
                 </View>
               </View>
+
+              {/* Min DP Info */}
+              <Animated.View entering={FadeInUp.delay(350).duration(400)}>
+                <View
+                  className={`rounded-2xl p-4 mt-3 border ${
+                    isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-gray-50 border-gray-200'
+                  }`}>
+                  <View className="flex-row items-center mb-1">
+                    <Feather name="shield" size={12} color={isDark ? '#888' : '#666'} />
+                    <Text className={`ml-1.5 text-xs font-bold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Minimum Down Payment
+                    </Text>
+                  </View>
+                  <Text className={`text-[11px] leading-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                    {isResident ? 'UAE Resident' : 'Non-Resident'}
+                    {isResident ? (isFirstTimeBuyer ? ', first-time buyer' : ', not first-time') : ''}
+                    {' — '}
+                    Min {minDP}% ({fmtAED(Math.round(propertyPrice * minDP / 100))})
+                    {propertyPrice > 5_000_000 ? ' (property > AED 5M)' : ''}
+                  </Text>
+                </View>
+              </Animated.View>
 
               {/* CTA */}
               <Animated.View entering={FadeInUp.delay(400).duration(400)} className="mt-5">
@@ -467,7 +709,8 @@ export default function CalcCostsScreen() {
               <View className="flex-row items-start mt-5 mb-2">
                 <Feather name="info" size={11} color={isDark ? '#444' : '#bbb'} style={{ marginTop: 2 }} />
                 <Text className={`ml-2 text-[11px] leading-4 flex-1 ${isDark ? 'text-gray-700' : 'text-gray-400'}`}>
-                  Fees vary by emirate and bank. Contact your bank for exact charges.
+                  Fees vary by emirate, bank, and property type. Trustee fees and admin fees apply primarily
+                  in Dubai. Contact your bank for exact charges. Off-plan Oqood fee replaces DLD transfer fee.
                 </Text>
               </View>
             </Animated.View>

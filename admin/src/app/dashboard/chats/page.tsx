@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   subscribeToChats,
   subscribeToAllChats,
-} from "@/lib/chat-service";
+ createChat } from "@/lib/chat-service";
 import { fetchAllUsers } from "@/lib/firestore";
 import type { Chat, User } from "@/lib/types";
 import {
@@ -46,7 +46,6 @@ import {
   Users,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { createChat } from "@/lib/chat-service";
 
 export default function ChatsPage() {
   const { firebaseUser, userDoc } = useAuth();

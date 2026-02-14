@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,10 @@ import {
   Image,
   Linking,
   Modal,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useColorScheme } from 'nativewind';
 import Animated, {
   FadeIn,
@@ -29,6 +30,18 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useAuthStore } from '@/src/store/authStore';
 import { useApplicationStore } from '@/src/store/applicationStore';
 import { calculateEMI, getMinDownPaymentPercent } from '@/src/utils/helpers';
+import { DatePickerField } from '@/components/DatePickerField';
+import { EmiratesIdField } from '@/components/EmiratesIdField';
+import { Toast } from '@/components/Toast';
+import { DraftSavedModal } from '@/components/DraftSavedModal';
+import { useToast } from '@/src/hooks/useToast';
+import { 
+  saveDraftLocally, 
+  loadDraftById, 
+  deleteDraftLocally,
+  type ApplicationDraft 
+} from '@/src/utils/draftStorage';
+import { CountryPicker } from '@/components/CountryPicker';
 import type {
   ApplicantIdentity,
   ContactResidency,
@@ -175,6 +188,16 @@ function fmtFileSize(bytes: number): string {
   if (bytes >= 1_000) return `${(bytes / 1_000).toFixed(0)} KB`;
   return `${bytes} B`;
 }
+function fmtEmiratesId(value: string): string {
+  if (!value) return '—';
+  const digits = value.replace(/\D/g, '');
+  let formatted = '';
+  if (digits.length > 0) formatted = digits.substring(0, 3);
+  if (digits.length > 3) formatted += '-' + digits.substring(3, 7);
+  if (digits.length > 7) formatted += '-' + digits.substring(7, 14);
+  if (digits.length > 14) formatted += '-' + digits.substring(14, 15);
+  return formatted;
+}
 
 // =====================================================================
 // Reusable: Step Header (Wizard-style heading for each step)
@@ -258,19 +281,20 @@ function ChipSelect<T extends string>({
         <Text className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{label}</Text>
         {required && <Text className="text-red-500 ml-1 text-xs">*</Text>}
       </View>
-      <View className="flex-row flex-wrap gap-2">
+      <View className="flex-row flex-wrap gap-2.5">
         {options.map((opt) => {
           const active = selected === opt.value;
           return (
             <Pressable
               key={opt.value}
               onPress={() => onSelect(opt.value)}
-              className={`px-4 py-2.5 rounded-xl border ${
+              style={{ width: options.length === 2 ? '48%' : undefined }}
+              className={`${options.length === 2 ? '' : 'flex-1 min-w-[48%]'} px-4 py-3.5 rounded-2xl border ${
                 active
                   ? isDark ? 'bg-white border-white' : 'bg-black border-black'
                   : isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
               }`}>
-              <Text className={`text-sm font-semibold ${
+              <Text className={`text-sm font-semibold text-center ${
                 active
                   ? isDark ? 'text-black' : 'text-white'
                   : isDark ? 'text-gray-400' : 'text-gray-600'
@@ -600,6 +624,12 @@ export default function ApplicationScreen() {
   const isDark = colorScheme === 'dark';
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
+  const params = useLocalSearchParams();
+  const { toast, showToast, hideToast } = useToast();
+  
+  // Check if we should load draft or start fresh
+  const shouldLoadDraft = params.continueDraft === 'true';
+  const draftIdParam = params.draftId as string | undefined;
 
   // Auth
   const { userDoc, firebaseUser } = useAuthStore();
@@ -610,6 +640,11 @@ export default function ApplicationScreen() {
   const [submitted, setSubmitted] = useState(false);
   const [appId, setAppId] = useState('');
   const [draftSaved, setDraftSaved] = useState(false);
+  const [draftId, setDraftId] = useState('');
+  const [loadingDraft, setLoadingDraft] = useState(true);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [showDraftSavedModal, setShowDraftSavedModal] = useState(false);
 
   // Form data
   const [identity, setIdentity] = useState<ApplicantIdentity>(() => ({
@@ -631,6 +666,80 @@ export default function ApplicationScreen() {
 
   // Validation
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Track changes for unsaved warning
+  useEffect(() => {
+    // Mark as having changes if user has progressed beyond first step or made any edits
+    if (!loadingDraft) {
+      if (currentStep > 0) {
+        setHasUnsavedChanges(true);
+      }
+    }
+  }, [identity, contact, employment, financial, property, mortgage, documents, consent, currentStep, loadingDraft]);
+
+  // Handle Android hardware back button with useFocusEffect
+  useFocusEffect(
+    useCallback(() => {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        // If already submitted, allow normal back
+        if (submitted) {
+          return false;
+        }
+
+        // If on first step, just go back
+        if (currentStep === 0) {
+          router.back();
+          return true;
+        }
+
+        // If on other steps, go to previous step
+        setCurrentStep(currentStep - 1);
+        scrollRef.current?.scrollTo({ y: 0, animated: true });
+        return true;
+      });
+
+      return () => backHandler.remove();
+    }, [submitted, currentStep, router])
+  );
+
+  // Load draft on mount (only if continueDraft param is true)
+  useEffect(() => {
+    const loadDraft = async () => {
+      if (!firebaseUser?.uid) {
+        setLoadingDraft(false);
+        return;
+      }
+
+      try {
+        // Only load draft if explicitly requested with a draft ID
+        if (shouldLoadDraft && draftIdParam) {
+          const draft = await loadDraftById(draftIdParam);
+          
+          if (draft && draft.userId === firebaseUser.uid) {
+            // Restore draft data
+            setDraftId(draft.id);
+            setCurrentStep(draft.currentStep);
+            setIdentity(draft.identity);
+            setContact(draft.contact);
+            setEmployment(draft.employment);
+            setFinancial(draft.financial);
+            setProperty(draft.property);
+            setMortgage(draft.mortgage);
+            setEligibility(draft.eligibility);
+            setDocuments(draft.documents);
+            setConsent(draft.consent);
+            setDraftSaved(true);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading draft:', error);
+      } finally {
+        setLoadingDraft(false);
+      }
+    };
+
+    loadDraft();
+  }, [firebaseUser?.uid, shouldLoadDraft, draftIdParam]);
 
   // Step progress for header
   const progress = useMemo(() => {
@@ -766,12 +875,13 @@ export default function ApplicationScreen() {
   // ---- Navigation ----
   const goNext = () => {
     if (!validateStep(currentStep)) {
-      Alert.alert('Missing Information', 'Please fill in all required fields before continuing.');
+      showToast('Please fill in all required fields before continuing.', 'warning');
       return;
     }
     if (currentStep === 6) computeEligibility();
     if (currentStep < STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
+      setHasUnsavedChanges(true);
       scrollRef.current?.scrollTo({ y: 0, animated: true });
     }
   };
@@ -780,6 +890,9 @@ export default function ApplicationScreen() {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
       scrollRef.current?.scrollTo({ y: 0, animated: true });
+    } else {
+      // Just go back directly
+      router.back();
     }
   };
 
@@ -790,40 +903,54 @@ export default function ApplicationScreen() {
     }
   };
 
+  // Manual save draft function
+  const handleSaveDraft = async () => {
+    if (!firebaseUser?.uid) {
+      showToast('You must be logged in to save a draft.', 'error');
+      return;
+    }
+
+    setSavingDraft(true);
+    try {
+      const draft: ApplicationDraft = {
+        id: draftId || `draft_${Date.now()}`,
+        userId: firebaseUser.uid,
+        currentStep,
+        lastSaved: new Date().toISOString(),
+        identity,
+        contact,
+        employment,
+        financial,
+        property,
+        mortgage,
+        eligibility,
+        documents,
+        consent,
+      };
+
+      await saveDraftLocally(draft);
+      if (!draftId) setDraftId(draft.id);
+      setDraftSaved(true);
+      setHasUnsavedChanges(false);
+      
+      // Show modal instead of toast
+      setShowDraftSavedModal(true);
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      showToast('Failed to save draft. Please try again.', 'error');
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
   // ---- Document picker ----
   const handlePickDocument = async (category: DocumentCategory) => {
     if (!firebaseUser) {
-      Alert.alert('Error', 'You must be logged in to upload documents.');
+      showToast('You must be logged in to upload documents.', 'error');
       return;
     }
 
     try {
-      // Save draft first if not already saved to get an application ID
-      let applicationId = appId;
-      if (!applicationId) {
-        try {
-          applicationId = await useApplicationStore.getState().saveDraft({
-            userId: firebaseUser.uid,
-            status: 'draft',
-            currentStep,
-            applicantIdentity: identity,
-            contactResidency: contact,
-            employmentIncome: employment,
-            financialObligations: financial,
-            propertyDetails: property,
-            mortgagePreferences: mortgage,
-            eligibilityResults: eligibility,
-            documentUploads: documents,
-            consentDeclarations: consent,
-          });
-          setAppId(applicationId);
-          setDraftSaved(true);
-        } catch (err: any) {
-          Alert.alert('Error', 'Failed to save draft. Please try again.');
-          return;
-        }
-      }
-
       const result = await DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'image/webp',
                'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
@@ -836,75 +963,30 @@ export default function ApplicationScreen() {
       const file = result.assets[0];
       if (!file) return;
 
-      // Show uploading indicator
-      const tempId = `${category}_${Date.now()}`;
-      const tempDoc: UploadedDocument = {
-        id: tempId,
+      // Store document locally in draft (will be uploaded to Firebase on submission)
+      const localDoc: UploadedDocument = {
+        id: `local_${category}_${Date.now()}`,
         category,
         fileName: file.name,
         fileSize: file.size || 0,
         mimeType: file.mimeType || 'application/octet-stream',
-        downloadURL: file.uri, // temporary local URI
+        downloadURL: file.uri, // local URI, will be uploaded on submission
         uploadedAt: new Date().toISOString(),
       };
 
-      // Add temp doc to show in UI
+      // Add document to local state
       setDocuments((prev) => ({
-        documents: [...prev.documents, tempDoc],
+        documents: [...prev.documents, localDoc],
       }));
 
-      // Upload to Firebase Storage
-      try {
-        const uploadedDoc = await useApplicationStore.getState().uploadDoc(
-          firebaseUser.uid,
-          applicationId,
-          category,
-          file.uri,
-          file.name,
-          file.size || 0,
-          file.mimeType || 'application/octet-stream'
-        );
-
-        // Replace temp doc with uploaded doc
-        setDocuments((prev) => ({
-          documents: prev.documents.map((d) => 
-            d.id === tempId ? uploadedDoc : d
-          ),
-        }));
-
-        // Update draft with new document
-        await useApplicationStore.getState().update(applicationId, {
-          documentUploads: {
-            documents: documents.documents.map((d) => 
-              d.id === tempId ? uploadedDoc : d
-            ),
-          },
-        });
-      } catch (uploadErr: any) {
-        // Remove temp doc on upload failure
-        setDocuments((prev) => ({
-          documents: prev.documents.filter((d) => d.id !== tempId),
-        }));
-        Alert.alert('Upload Failed', uploadErr.message || 'Failed to upload document to storage.');
-      }
+      showToast('Document added! It will be uploaded when you submit.', 'success');
     } catch (err) {
-      Alert.alert('Upload Error', 'Failed to pick document. Please try again.');
+      showToast('Failed to pick document. Please try again.', 'error');
     }
   };
 
   const handleRemoveDocument = async (docId: string) => {
-    const doc = documents.documents.find((d) => d.id === docId);
-    if (!doc) return;
-
-    // If document has a Firebase Storage URL, delete it
-    if (doc.downloadURL && doc.downloadURL.startsWith('https://')) {
-      try {
-        await useApplicationStore.getState().deleteDoc(doc.downloadURL);
-      } catch (err) {
-        console.warn('Failed to delete document from storage:', err);
-      }
-    }
-
+    // Simply remove from local state (documents are stored locally until submission)
     setDocuments((prev) => ({
       documents: prev.documents.filter((d) => d.id !== docId),
     }));
@@ -913,16 +995,17 @@ export default function ApplicationScreen() {
   // ---- Submit ----
   const handleSubmit = async () => {
     if (!firebaseUser) {
-      Alert.alert('Error', 'You must be logged in to submit an application.');
+      showToast('You must be logged in to submit an application.', 'error');
       return;
     }
 
     if (!validateStep(8)) {
-      Alert.alert('Consent Required', 'Please accept all required consents before submitting.');
+      showToast('Please accept all required consents before submitting.', 'warning');
       return;
     }
 
     try {
+      // First, create the application in Firestore to get an ID
       const id = await createApp({
         userId: firebaseUser.uid,
         status: 'submitted',
@@ -934,13 +1017,55 @@ export default function ApplicationScreen() {
         propertyDetails: property,
         mortgagePreferences: mortgage,
         eligibilityResults: eligibility,
-        documentUploads: documents,
+        documentUploads: { documents: [] }, // Will upload documents next
         consentDeclarations: consent,
       });
+
+      // Upload documents to Firebase Storage if any
+      if (documents.documents.length > 0) {
+        const uploadedDocs: UploadedDocument[] = [];
+        
+        for (const doc of documents.documents) {
+          try {
+            // Only upload if it's a local file (not already uploaded)
+            if (doc.downloadURL.startsWith('file://')) {
+              const uploadedDoc = await useApplicationStore.getState().uploadDoc(
+                firebaseUser.uid,
+                id,
+                doc.category,
+                doc.downloadURL,
+                doc.fileName,
+                doc.fileSize,
+                doc.mimeType
+              );
+              uploadedDocs.push(uploadedDoc);
+            } else {
+              uploadedDocs.push(doc);
+            }
+          } catch (uploadErr) {
+            console.error('Failed to upload document:', uploadErr);
+            // Continue with other documents
+          }
+        }
+
+        // Update application with uploaded documents
+        if (uploadedDocs.length > 0) {
+          await useApplicationStore.getState().update(id, {
+            documentUploads: { documents: uploadedDocs },
+          });
+        }
+      }
+      
+      // Delete local draft after successful submission
+      if (draftId) {
+        await deleteDraftLocally(draftId);
+      }
+      
       setAppId(id);
       setSubmitted(true);
+      setHasUnsavedChanges(false);
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to submit application.');
+      showToast(err.message || 'Failed to submit application.', 'error');
     }
   };
 
@@ -1006,7 +1131,14 @@ export default function ApplicationScreen() {
         {/* Back button + Progress bar row */}
         <View className="flex-row items-center gap-4">
           <Pressable
-            onPress={() => { currentStep > 0 ? goBack() : router.back(); }}
+            onPress={() => {
+              if (currentStep > 0) {
+                setCurrentStep(currentStep - 1);
+                scrollRef.current?.scrollTo({ y: 0, animated: true });
+              } else {
+                router.back();
+              }
+            }}
             className={`w-12 h-12 rounded-full items-center justify-center ${
               isDark ? 'bg-white' : 'bg-black'
             }`}
@@ -1105,12 +1237,24 @@ export default function ApplicationScreen() {
                 <FormField label="Full Name (as per Emirates ID)" value={identity.fullName}
                   onChangeText={(t) => setIdentity((s) => ({ ...s, fullName: t }))}
                   placeholder="Enter full legal name" isDark={isDark} required error={errors.fullName} />
-                <FormField label="Nationality" value={identity.nationality}
-                  onChangeText={(t) => setIdentity((s) => ({ ...s, nationality: t }))}
-                  placeholder="e.g., UAE, Indian, British" isDark={isDark} required error={errors.nationality} />
-                <FormField label="Date of Birth" value={identity.dateOfBirth}
+                <CountryPicker
+                  label="Nationality"
+                  value={identity.nationality}
+                  onSelect={(country) => setIdentity((s) => ({ ...s, nationality: country }))}
+                  isDark={isDark}
+                  required
+                  error={errors.nationality}
+                  placeholder="Select your nationality"
+                />
+                <DatePickerField
+                  label="Date of Birth"
+                  value={identity.dateOfBirth}
                   onChangeText={(t) => setIdentity((s) => ({ ...s, dateOfBirth: t }))}
-                  placeholder="DD/MM/YYYY" isDark={isDark} />
+                  placeholder="DD/MM/YYYY"
+                  isDark={isDark}
+                  required
+                  error={errors.dateOfBirth}
+                />
                 <ChipSelect<Gender>
                   label="Gender" options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]}
                   selected={identity.gender} onSelect={(v) => setIdentity((s) => ({ ...s, gender: v }))} isDark={isDark} />
@@ -1127,18 +1271,32 @@ export default function ApplicationScreen() {
               </SectionCard>
 
               <SectionCard icon="credit-card" title="ID Documents" isDark={isDark} delay={200}>
-                <FormField label="Emirates ID Number" value={identity.emiratesIdNumber}
+                <EmiratesIdField
+                  label="Emirates ID Number"
+                  value={identity.emiratesIdNumber}
                   onChangeText={(t) => setIdentity((s) => ({ ...s, emiratesIdNumber: t }))}
-                  placeholder="784-XXXX-XXXXXXX-X" isDark={isDark} required error={errors.emiratesIdNumber} />
-                <FormField label="Emirates ID Expiry" value={identity.emiratesIdExpiry}
+                  placeholder="784-XXXX-XXXXXXX-X"
+                  isDark={isDark}
+                  required
+                  error={errors.emiratesIdNumber}
+                />
+                <DatePickerField
+                  label="Emirates ID Expiry"
+                  value={identity.emiratesIdExpiry}
                   onChangeText={(t) => setIdentity((s) => ({ ...s, emiratesIdExpiry: t }))}
-                  placeholder="DD/MM/YYYY" isDark={isDark} />
+                  placeholder="DD/MM/YYYY"
+                  isDark={isDark}
+                />
                 <FormField label="Passport Number" value={identity.passportNumber}
                   onChangeText={(t) => setIdentity((s) => ({ ...s, passportNumber: t }))}
                   placeholder="Enter passport number" isDark={isDark} required error={errors.passportNumber} />
-                <FormField label="Passport Expiry" value={identity.passportExpiry}
+                <DatePickerField
+                  label="Passport Expiry"
+                  value={identity.passportExpiry}
                   onChangeText={(t) => setIdentity((s) => ({ ...s, passportExpiry: t }))}
-                  placeholder="DD/MM/YYYY" isDark={isDark} />
+                  placeholder="DD/MM/YYYY"
+                  isDark={isDark}
+                />
               </SectionCard>
 
               <SectionCard icon="upload" title="Upload KYC Documents" isDark={isDark} delay={300}>
@@ -1437,9 +1595,14 @@ export default function ApplicationScreen() {
                       onChangeText={(t) => setProperty((s) => ({ ...s, purchasePrice: parseInt(t) || 0 }))}
                       placeholder="0" keyboardType="numeric" isDark={isDark} prefix="AED" required />
                     {property.propertyStatus === 'off_plan' && (
-                      <FormField label="Expected Completion Date" value={property.expectedCompletionDate}
+                      <DatePickerField
+                        label="Expected Completion Date"
+                        value={property.expectedCompletionDate}
                         onChangeText={(t) => setProperty((s) => ({ ...s, expectedCompletionDate: t }))}
-                        placeholder="MM/YYYY" isDark={isDark} />
+                        placeholder="DD/MM/YYYY"
+                        isDark={isDark}
+                        hint="Expected date when property will be ready"
+                      />
                     )}
                     <View className="flex-row gap-3">
                       <View className="flex-1">
@@ -1728,7 +1891,7 @@ export default function ApplicationScreen() {
                 <ReviewRow label="Nationality" value={identity.nationality} isDark={isDark} />
                 <ReviewRow label="Date of Birth" value={identity.dateOfBirth} isDark={isDark} />
                 <ReviewRow label="Gender" value={identity.gender || '—'} isDark={isDark} />
-                <ReviewRow label="Emirates ID" value={identity.emiratesIdNumber} isDark={isDark} />
+                <ReviewRow label="Emirates ID" value={fmtEmiratesId(identity.emiratesIdNumber)} isDark={isDark} />
                 <ReviewRow label="Passport" value={identity.passportNumber} isDark={isDark} />
               </SectionCard>
 
@@ -1893,10 +2056,31 @@ export default function ApplicationScreen() {
             </Pressable>
           )}
 
+          {/* Save Draft Button */}
+          <Pressable
+            onPress={handleSaveDraft}
+            disabled={savingDraft}
+            className={`w-14 h-14 rounded-2xl items-center justify-center border ${
+              savingDraft ? 'opacity-50' : ''
+            } ${isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'}`}
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isDark ? 0.3 : 0.08,
+              shadowRadius: 8,
+              elevation: 3,
+            }}>
+            {savingDraft ? (
+              <ActivityIndicator size="small" color={isDark ? '#fff' : '#000'} />
+            ) : (
+              <Feather name="save" size={20} color={isDark ? '#fff' : '#000'} />
+            )}
+          </Pressable>
+
           {currentStep < STEPS.length - 1 ? (
             <Pressable
               onPress={goNext}
-              className={`${currentStep === 0 ? 'w-full' : 'flex-1'} rounded-2xl py-3.5 items-center ${isDark ? 'bg-white' : 'bg-black'}`}
+              className={`${currentStep === 0 ? 'flex-1' : 'flex-1'} rounded-2xl py-3.5 items-center ${isDark ? 'bg-white' : 'bg-black'}`}
               style={{
                 shadowColor: isDark ? '#fff' : '#000',
                 shadowOffset: { width: 0, height: 4 },
@@ -1934,6 +2118,23 @@ export default function ApplicationScreen() {
           )}
         </View>
       </View>
+
+      {/* Toast Notification */}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={hideToast}
+        isDark={isDark}
+      />
+
+      {/* Draft Saved Modal */}
+      <DraftSavedModal
+        visible={showDraftSavedModal}
+        onClose={() => setShowDraftSavedModal(false)}
+        isDark={isDark}
+      />
     </SafeAreaView>
   );
 }
+

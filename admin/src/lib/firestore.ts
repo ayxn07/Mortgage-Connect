@@ -45,10 +45,15 @@ export async function updateUserRole(
   uid: string,
   role: "user" | "agent" | "admin"
 ): Promise<void> {
-  await updateDoc(doc(db, "users", uid), {
-    role,
-    updatedAt: Timestamp.now(),
-  });
+  try {
+    await updateDoc(doc(db, "users", uid), {
+      role,
+      updatedAt: Timestamp.now(),
+    });
+  } catch (error: any) {
+    console.error("Error updating user role:", error);
+    throw new Error(error?.message || "Failed to update user role in Firestore");
+  }
 }
 
 export async function deleteUser(uid: string): Promise<void> {

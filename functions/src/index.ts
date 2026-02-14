@@ -4,6 +4,9 @@ import { Resend } from 'resend';
 
 admin.initializeApp();
 
+// AI Chat function
+export { aiChat } from './aiChat';
+
 // Initialize Resend with API key
 const resend = new Resend('re_JaVHXqBR_refrubWTtTWxdhL3Anvoxn8n');
 
