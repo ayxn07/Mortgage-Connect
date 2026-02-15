@@ -19,6 +19,7 @@ import Animated, {
 import { Feather } from '@expo/vector-icons';
 import { calculatePrepaymentSavings, calculateEMI } from '@/src/utils/helpers';
 import type { PrepaymentResult } from '@/src/utils/helpers';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 
 const ACCENT = '#8b5cf6'; // violet
 
@@ -126,11 +127,15 @@ function Chips({
   selected,
   onSelect,
   isDark,
+  accentColor,
+  accentTextColor,
 }: {
   items: { label: string; value: number }[];
   selected: number;
   onSelect: (v: number) => void;
   isDark: boolean;
+  accentColor: string;
+  accentTextColor: string;
 }) {
   return (
     <View className="flex-row flex-wrap gap-2">
@@ -140,15 +145,17 @@ function Chips({
           <Pressable
             key={String(item.value)}
             onPress={() => onSelect(item.value)}
+            style={active ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
             className={`px-4 py-2.5 rounded-xl border ${
               active
-                ? isDark ? 'bg-white border-white' : 'bg-black border-black'
+                ? ''
                 : isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
             }`}>
             <Text
+              style={active ? { color: accentTextColor } : undefined}
               className={`text-sm font-semibold ${
                 active
-                  ? isDark ? 'text-black' : 'text-white'
+                  ? ''
                   : isDark ? 'text-gray-400' : 'text-gray-600'
               }`}>
               {item.label}
@@ -202,34 +209,47 @@ function StatCard({
   sub,
   isDark,
   accent,
+  accentColor,
+  accentTextColor,
 }: {
   label: string;
   value: string;
   sub?: string;
   isDark: boolean;
   accent?: boolean;
+  accentColor?: string;
+  accentTextColor?: string;
 }) {
   return (
     <View
+      style={accent && accentColor ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
       className={`flex-1 rounded-2xl p-4 border ${
         accent
-          ? isDark ? 'bg-white border-white' : 'bg-black border-black'
+          ? accentColor
+            ? ''
+            : isDark ? 'bg-white border-white' : 'bg-black border-black'
           : isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
       }`}>
-      <Text className={`text-xs ${
+      <Text style={accent && accentTextColor ? { color: accentTextColor, opacity: 0.5 } : undefined} className={`text-xs ${
         accent
-          ? isDark ? 'text-black/50' : 'text-white/50'
+          ? accentTextColor
+            ? ''
+            : isDark ? 'text-black/50' : 'text-white/50'
           : isDark ? 'text-gray-500' : 'text-gray-400'
       }`}>{label}</Text>
-      <Text className={`text-lg font-bold mt-1 ${
+      <Text style={accent && accentTextColor ? { color: accentTextColor } : undefined} className={`text-lg font-bold mt-1 ${
         accent
-          ? isDark ? 'text-black' : 'text-white'
+          ? accentTextColor
+            ? ''
+            : isDark ? 'text-black' : 'text-white'
           : isDark ? 'text-white' : 'text-black'
       }`}>{value}</Text>
       {sub && (
-        <Text className={`text-[10px] mt-0.5 ${
+        <Text style={accent && accentTextColor ? { color: accentTextColor, opacity: 0.4 } : undefined} className={`text-[10px] mt-0.5 ${
           accent
-            ? isDark ? 'text-black/40' : 'text-white/40'
+            ? accentTextColor
+              ? ''
+              : isDark ? 'text-black/40' : 'text-white/40'
             : isDark ? 'text-gray-600' : 'text-gray-400'
         }`}>{sub}</Text>
       )}
@@ -246,12 +266,16 @@ function Toggle({
   onToggle,
   isDark,
   hint,
+  accentColor,
+  accentTextColor,
 }: {
   label: string;
   value: boolean;
   onToggle: () => void;
   isDark: boolean;
   hint?: string;
+  accentColor: string;
+  accentTextColor: string;
 }) {
   return (
     <View className="mb-3">
@@ -264,15 +288,17 @@ function Toggle({
         </View>
         <Pressable
           onPress={onToggle}
+          style={value ? { backgroundColor: accentColor } : undefined}
           className={`w-12 h-7 rounded-full justify-center px-1 ${
             value
-              ? isDark ? 'bg-white' : 'bg-black'
+              ? ''
               : isDark ? 'bg-[#2a2a2a]' : 'bg-gray-300'
           }`}>
           <View
+            style={value ? { backgroundColor: accentTextColor } : undefined}
             className={`w-5 h-5 rounded-full ${
               value
-                ? isDark ? 'bg-black self-end' : 'bg-white self-end'
+                ? 'self-end'
                 : isDark ? 'bg-gray-600 self-start' : 'bg-white self-start'
             }`}
           />
@@ -289,6 +315,7 @@ export default function CalcPrepayScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const { getButtonBg, getButtonText, getAccentColor } = useThemeColors();
 
   // --- Loan inputs ---
   const [loanAmount, setLoanAmount] = useState(1_200_000);
@@ -350,7 +377,7 @@ export default function CalcPrepayScreen() {
           <View
             className="w-10 h-10 rounded-full items-center justify-center"
             style={{ backgroundColor: `${ACCENT}20` }}>
-            <Feather name="zap" size={18} color={ACCENT} />
+            <Feather name="zap" size={18} color={getAccentColor()} />
           </View>
         </View>
       </Animated.View>
@@ -384,6 +411,8 @@ export default function CalcPrepayScreen() {
                 selected={loanAmount}
                 onSelect={setLoanAmount}
                 isDark={isDark}
+                accentColor={getAccentColor()}
+                accentTextColor={getButtonText()}
               />
 
               <View className="mt-4 flex-row gap-3">
@@ -432,6 +461,8 @@ export default function CalcPrepayScreen() {
                 onToggle={() => setEnableLumpSum(!enableLumpSum)}
                 isDark={isDark}
                 hint="Make a single large extra payment"
+                accentColor={getAccentColor()}
+                accentTextColor={getButtonText()}
               />
 
               {enableLumpSum && (
@@ -452,6 +483,8 @@ export default function CalcPrepayScreen() {
                     selected={lumpSumAmount}
                     onSelect={setLumpSumAmount}
                     isDark={isDark}
+                    accentColor={getAccentColor()}
+                    accentTextColor={getButtonText()}
                   />
                   <View className="mt-3">
                     <NumInput
@@ -472,6 +505,8 @@ export default function CalcPrepayScreen() {
                 onToggle={() => setEnableExtraMonthly(!enableExtraMonthly)}
                 isDark={isDark}
                 hint="Pay additional amount every month"
+                accentColor={getAccentColor()}
+                accentTextColor={getButtonText()}
               />
 
               {enableExtraMonthly && (
@@ -493,6 +528,8 @@ export default function CalcPrepayScreen() {
                     selected={extraMonthlyPayment}
                     onSelect={setExtraMonthlyPayment}
                     isDark={isDark}
+                    accentColor={getAccentColor()}
+                    accentTextColor={getButtonText()}
                   />
                 </View>
               )}
@@ -556,6 +593,8 @@ export default function CalcPrepayScreen() {
                   sub={hasSavings ? `${result.monthsSaved} months less` : 'No change'}
                   isDark={isDark}
                   accent={hasSavings}
+                  accentColor={hasSavings ? getButtonBg() : undefined}
+                  accentTextColor={hasSavings ? getButtonText() : undefined}
                 />
               </View>
 
@@ -699,11 +738,10 @@ export default function CalcPrepayScreen() {
               <Animated.View entering={FadeInUp.delay(500).duration(400)} className="mt-1">
                 <Pressable
                   onPress={() => router.push('/calc-emi' as any)}
-                  className={`rounded-2xl py-4 items-center flex-row justify-center ${
-                    isDark ? 'bg-white' : 'bg-black'
-                  }`}>
-                  <Feather name="credit-card" size={16} color={isDark ? '#000' : '#fff'} />
-                  <Text className={`ml-2 text-base font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+                  style={{ backgroundColor: getButtonBg() }}
+                  className="rounded-2xl py-4 items-center flex-row justify-center">
+                  <Feather name="credit-card" size={16} color={getButtonText()} />
+                  <Text style={{ color: getButtonText() }} className="ml-2 text-base font-bold">
                     EMI Calculator
                   </Text>
                 </Pressable>

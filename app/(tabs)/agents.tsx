@@ -22,6 +22,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { useColorScheme } from 'nativewind';
 import { useAgents } from '@/src/hooks/useAgents';
 import { useFavorites } from '@/src/hooks/useFavorites';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 import { AGENT_CATEGORIES } from '@/src/types/agent';
 import type { Agent } from '@/src/types';
 
@@ -40,6 +41,7 @@ function AgentCard({
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const { primaryColor, getAccentTextColor } = useThemeColors();
 
   return (
     <Animated.View entering={FadeInDown.delay(index * 80).springify()}>
@@ -86,9 +88,9 @@ function AgentCard({
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 activeOpacity={0.7}>
                 <Heart
-                  color={isFavorite ? '#ef4444' : isDark ? '#555' : '#ccc'}
+                  color={isFavorite ? primaryColor : isDark ? '#555' : '#ccc'}
                   size={20}
-                  fill={isFavorite ? '#ef4444' : 'transparent'}
+                  fill={isFavorite ? primaryColor : 'transparent'}
                 />
               </TouchableOpacity>
             </View>
@@ -103,7 +105,7 @@ function AgentCard({
             {/* Rating + Experience row */}
             <View className="flex-row items-center mt-2 gap-3">
               <View className="flex-row items-center">
-                <Star color="#f59e0b" size={14} fill="#f59e0b" />
+                <Star color={primaryColor} size={14} fill={primaryColor} />
                 <Text className={`ml-1 text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {agent.avgRating?.toFixed(1) || '0.0'}
                 </Text>
@@ -171,14 +173,13 @@ function AgentCard({
 
           {/* View Profile Button */}
           <TouchableOpacity
-            className={`rounded-full px-4 py-2 ${
-              isDark ? 'bg-white' : 'bg-gray-900'
-            }`}
+            className="rounded-full px-4 py-2"
+            style={{ backgroundColor: primaryColor }}
             activeOpacity={0.8}
             onPress={() =>
               router.push({ pathname: '/agent-detail', params: { agentId: agent.uid } })
             }>
-            <Text className={`text-xs font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+            <Text className="text-xs font-bold" style={{ color: getAccentTextColor() }}>
               View Profile
             </Text>
           </TouchableOpacity>
@@ -219,6 +220,7 @@ export default function AgentsScreen() {
   const isDark = colorScheme === 'dark';
   const [filterExpanded, setFilterExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const { primaryColor, getAccentTextColor } = useThemeColors();
   
   // Animation
   const filterHeight = useSharedValue(0);
@@ -345,10 +347,10 @@ export default function AgentsScreen() {
               Filters
             </Text>
             {activeFilterCount > 0 && (
-              <View className={`ml-2 w-5 h-5 rounded-full items-center justify-center ${
-                isDark ? 'bg-white' : 'bg-black'
-              }`}>
-                <Text className={`text-[10px] font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+              <View
+                className="ml-2 w-5 h-5 rounded-full items-center justify-center"
+                style={{ backgroundColor: primaryColor }}>
+                <Text className="text-[10px] font-bold" style={{ color: getAccentTextColor() }}>
                   {activeFilterCount}
                 </Text>
               </View>
@@ -375,24 +377,24 @@ export default function AgentsScreen() {
                     onPress={() => handleCategorySelect(category)}
                     className={`rounded-full border px-4 py-2 ${
                       filters.category === category
-                        ? isDark
-                          ? 'border-white bg-white'
-                          : 'border-black bg-black'
+                        ? 'border-transparent'
                         : isDark
                         ? 'border-[#333] bg-transparent'
                         : 'border-gray-200 bg-transparent'
                     }`}
+                    style={
+                      filters.category === category
+                        ? { backgroundColor: primaryColor, borderColor: primaryColor }
+                        : undefined
+                    }
                     activeOpacity={0.7}>
                     <Text
-                      className={`text-sm font-medium ${
+                      className="text-sm font-medium"
+                      style={
                         filters.category === category
-                          ? isDark
-                            ? 'text-black'
-                            : 'text-white'
-                          : isDark
-                          ? 'text-gray-300'
-                          : 'text-gray-700'
-                      }`}>
+                          ? { color: getAccentTextColor() }
+                          : { color: isDark ? '#d1d5db' : '#374151' }
+                      }>
                       {category}
                     </Text>
                   </TouchableOpacity>
@@ -409,24 +411,24 @@ export default function AgentsScreen() {
                 onPress={handleAvailableToggle}
                 className={`rounded-full border px-4 py-2 ${
                   filters.availableOnly
-                    ? isDark
-                      ? 'border-green-500 bg-green-500/10'
-                      : 'border-green-600 bg-green-50'
+                    ? 'border-transparent'
                     : isDark
                     ? 'border-[#333] bg-transparent'
                     : 'border-gray-200 bg-transparent'
                 }`}
+                style={
+                  filters.availableOnly
+                    ? { backgroundColor: `${primaryColor}20`, borderColor: primaryColor }
+                    : undefined
+                }
                 activeOpacity={0.7}>
                 <Text
-                  className={`text-sm font-medium ${
+                  className={`text-sm font-medium`}
+                  style={
                     filters.availableOnly
-                      ? isDark
-                        ? 'text-green-400'
-                        : 'text-green-700'
-                      : isDark
-                      ? 'text-gray-300'
-                      : 'text-gray-700'
-                  }`}>
+                      ? { color: primaryColor }
+                      : { color: isDark ? '#d1d5db' : '#374151' }
+                  }>
                   Available Now
                 </Text>
               </TouchableOpacity>
@@ -490,9 +492,10 @@ export default function AgentsScreen() {
                 resetFilters();
                 fetchAgents();
               }}
-              className={`mt-4 rounded-full px-6 py-3 ${isDark ? 'bg-white' : 'bg-black'}`}
+              className="mt-4 rounded-full px-6 py-3"
+              style={{ backgroundColor: primaryColor }}
               activeOpacity={0.8}>
-              <Text className={`font-semibold ${isDark ? 'text-black' : 'text-white'}`}>
+              <Text className="font-semibold" style={{ color: getAccentTextColor() }}>
                 Clear Filters
               </Text>
             </TouchableOpacity>

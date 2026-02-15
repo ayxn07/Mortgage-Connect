@@ -92,6 +92,8 @@ export interface AIMessage {
   text?: string;
   interaction?: AIInteraction;
   timestamp: number;
+  accentColor?: string;
+  accentTextColor?: string;
 }
 
 // =====================================================================

@@ -47,6 +47,10 @@ function parseMarkdownBold(text: string): { text: string; bold: boolean }[] {
 export function ChatBubble({ message, isDark }: ChatBubbleProps): React.ReactElement {
   const isUser = message.senderId === 'user';
   const textParts = parseMarkdownBold(message.text || '');
+  
+  // Use accent colors from message if available (for user messages)
+  const bubbleBg = isUser && message.accentColor ? message.accentColor : isUser ? (isDark ? '#fff' : '#000') : undefined;
+  const textColor = isUser && message.accentTextColor ? message.accentTextColor : isUser ? (isDark ? '#000' : '#fff') : undefined;
 
   return (
     <Animated.View
@@ -54,33 +58,32 @@ export function ChatBubble({ message, isDark }: ChatBubbleProps): React.ReactEle
       className={`flex-row ${isUser ? 'justify-end' : 'justify-start'} mb-2 px-4`}>
       {!isUser && (
         <View
-          className={`mr-2 mt-1 h-8 w-8 items-center justify-center rounded-full ${
-            isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'
-          }`}>
-          <Feather name="cpu" size={14} color={isDark ? '#8b5cf6' : '#6366f1'} />
+          className="mr-2 mt-1 h-8 w-8 items-center justify-center rounded-full"
+          style={{ backgroundColor: message.accentColor ? `${message.accentColor}20` : (isDark ? '#1a1a1a' : '#f5f5f5') }}>
+          <Feather name="cpu" size={14} color={message.accentColor || (isDark ? '#8b5cf6' : '#6366f1')} />
         </View>
       )}
       <View
         className={`max-w-[80%] rounded-2xl px-4 py-3 ${
           isUser
-            ? isDark
-              ? 'bg-white'
-              : 'bg-black'
+            ? ''
             : isDark
               ? 'border border-[#2a2a2a] bg-[#1a1a1a]'
               : 'border border-gray-100 bg-white'
         }`}
-        style={isUser ? { borderBottomRightRadius: 6 } : { borderBottomLeftRadius: 6 }}>
+        style={[
+          isUser ? { borderBottomRightRadius: 6 } : { borderBottomLeftRadius: 6 },
+          isUser && bubbleBg ? { backgroundColor: bubbleBg } : undefined,
+        ]}>
         <Text
           className={`text-[15px] leading-[22px] ${
             isUser
-              ? isDark
-                ? 'text-black'
-                : 'text-white'
+              ? ''
               : isDark
                 ? 'text-gray-200'
                 : 'text-gray-800'
-          }`}>
+          }`}
+          style={isUser && textColor ? { color: textColor } : undefined}>
           {textParts.map((part, index) => (
             <Text
               key={index}
@@ -98,14 +101,13 @@ export function ChatBubble({ message, isDark }: ChatBubbleProps): React.ReactEle
 // Typing Indicator
 // =====================================================================
 
-export function TypingIndicator({ isDark }: { isDark: boolean }): React.ReactElement {
+export function TypingIndicator({ isDark, accentColor }: { isDark: boolean; accentColor: string }): React.ReactElement {
   return (
     <Animated.View entering={FadeIn.duration(300)} className={`mb-2 flex-row items-center px-4`}>
       <View
-        className={`mr-2 h-8 w-8 items-center justify-center rounded-full ${
-          isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'
-        }`}>
-        <Feather name="cpu" size={14} color={isDark ? '#8b5cf6' : '#6366f1'} />
+        className="mr-2 h-8 w-8 items-center justify-center rounded-full"
+        style={{ backgroundColor: `${accentColor}20` }}>
+        <Feather name="cpu" size={14} color={accentColor} />
       </View>
       <View
         className={`rounded-2xl px-4 py-3 ${
@@ -181,12 +183,18 @@ interface ParameterInputProps {
   interaction: AIInteraction;
   onSubmit: (key: string, value: number) => void;
   isDark: boolean;
+  buttonBg: string;
+  buttonText: string;
+  accentColor: string;
 }
 
 export function ParameterInput({
   interaction,
   onSubmit,
   isDark,
+  buttonBg,
+  buttonText,
+  accentColor,
 }: ParameterInputProps): React.ReactElement {
   const config = interaction.inputConfig!;
   const [value, setValue] = useState(config.defaultValue ? String(config.defaultValue) : '');
@@ -317,12 +325,18 @@ interface SliderInputProps {
   interaction: AIInteraction;
   onSubmit: (key: string, value: number) => void;
   isDark: boolean;
+  buttonBg: string;
+  buttonText: string;
+  accentColor: string;
 }
 
 export function SliderInput({
   interaction,
   onSubmit,
   isDark,
+  buttonBg,
+  buttonText,
+  accentColor,
 }: SliderInputProps): React.ReactElement {
   const config = interaction.inputConfig!;
   const [value, setValue] = useState(config.defaultValue || config.min || 0);
@@ -461,12 +475,18 @@ interface OptionButtonsProps {
   interaction: AIInteraction;
   onSelect: (key: string, value: string | number) => void;
   isDark: boolean;
+  buttonBg: string;
+  buttonText: string;
+  accentColor: string;
 }
 
 export function OptionButtons({
   interaction,
   onSelect,
   isDark,
+  buttonBg,
+  buttonText,
+  accentColor,
 }: OptionButtonsProps): React.ReactElement {
   const options = interaction.options || [];
   const config = interaction.inputConfig;
@@ -542,7 +562,7 @@ export function OptionButtons({
           <View>
             {!showCustom ? (
               <Pressable onPress={() => setShowCustom(true)}>
-                <Text className="mt-1 text-xs font-medium text-[#6366f1]">Enter custom value</Text>
+                <Text className="mt-1 text-xs font-medium" style={{ color: accentColor }}>Enter custom value</Text>
               </Pressable>
             ) : (
               <View className="mt-2">
@@ -583,8 +603,9 @@ export function OptionButtons({
                 </View>
                 <Pressable
                   onPress={handleCustomSubmit}
-                  className={`items-center rounded-xl py-2.5 ${isDark ? 'bg-white' : 'bg-black'}`}>
-                  <Text className={`text-sm font-semibold ${isDark ? 'text-black' : 'text-white'}`}>
+                  style={{ backgroundColor: buttonBg }}
+                  className="items-center rounded-xl py-2.5">
+                  <Text style={{ color: buttonText }} className="text-sm font-semibold">
                     Continue
                   </Text>
                 </Pressable>
@@ -605,12 +626,14 @@ interface CalculatorResultProps {
   interaction: AIInteraction;
   onAction: (actionValue: string) => void;
   isDark: boolean;
+  accentColor: string;
 }
 
 export function CalculatorResult({
   interaction,
   onAction,
   isDark,
+  accentColor,
 }: CalculatorResultProps): React.ReactElement {
   const result = interaction.resultData!;
 
@@ -659,11 +682,12 @@ export function CalculatorResult({
               <Text
                 className={`text-[13px] font-medium ${
                   item.highlight
-                    ? 'font-bold text-[#6366f1]'
+                    ? 'font-bold'
                     : isDark
                       ? 'text-gray-200'
                       : 'text-gray-800'
-                }`}>
+                }`}
+                style={item.highlight ? { color: accentColor } : undefined}>
                 {item.value}
               </Text>
             </View>
@@ -673,10 +697,11 @@ export function CalculatorResult({
         {/* Insights */}
         {result.insights.length > 0 && (
           <View
-            className={`mx-4 mb-4 rounded-xl p-3 ${isDark ? 'bg-[#6366f1]/10' : 'bg-indigo-50'}`}>
+            className="mx-4 mb-4 rounded-xl p-3"
+            style={{ backgroundColor: `${accentColor}15` }}>
             <View className="mb-1.5 flex-row items-center">
-              <Feather name="zap" size={12} color="#6366f1" />
-              <Text className="ml-1 text-[11px] font-semibold text-[#6366f1]">AI INSIGHTS</Text>
+              <Feather name="zap" size={12} color={accentColor} />
+              <Text className="ml-1 text-[11px] font-semibold" style={{ color: accentColor }}>AI INSIGHTS</Text>
             </View>
             {result.insights.map((insight, index) => (
               <Text
@@ -733,6 +758,9 @@ export function CalculatorResult({
 interface MessageRendererProps {
   message: AIMessage;
   isDark: boolean;
+  accentColor: string;
+  buttonBg: string;
+  buttonText: string;
   onSelectOption: (value: string | number) => void;
   onSubmitInput: (key: string, value: number | string) => void;
   onResultAction: (actionValue: string) => void;
@@ -741,6 +769,9 @@ interface MessageRendererProps {
 export function MessageRenderer({
   message,
   isDark,
+  accentColor,
+  buttonBg,
+  buttonText,
   onSelectOption,
   onSubmitInput,
   onResultAction,
@@ -762,18 +793,18 @@ export function MessageRenderer({
 
       case 'parameter_input':
         return (
-          <ParameterInput interaction={interaction} onSubmit={onSubmitInput} isDark={isDark} />
+          <ParameterInput interaction={interaction} onSubmit={onSubmitInput} isDark={isDark} buttonBg={buttonBg} buttonText={buttonText} accentColor={accentColor} />
         );
 
       case 'slider_input':
-        return <SliderInput interaction={interaction} onSubmit={onSubmitInput} isDark={isDark} />;
+        return <SliderInput interaction={interaction} onSubmit={onSubmitInput} isDark={isDark} buttonBg={buttonBg} buttonText={buttonText} accentColor={accentColor} />;
 
       case 'option_buttons':
-        return <OptionButtons interaction={interaction} onSelect={onSubmitInput} isDark={isDark} />;
+        return <OptionButtons interaction={interaction} onSelect={onSubmitInput} isDark={isDark} buttonBg={buttonBg} buttonText={buttonText} accentColor={accentColor} />;
 
       case 'calculator_result':
         return (
-          <CalculatorResult interaction={interaction} onAction={onResultAction} isDark={isDark} />
+          <CalculatorResult interaction={interaction} onAction={onResultAction} isDark={isDark} accentColor={accentColor} />
         );
 
       default:

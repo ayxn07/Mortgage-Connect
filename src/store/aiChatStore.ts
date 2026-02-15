@@ -33,7 +33,7 @@ interface AIChatState {
   /** Initialize with welcome messages */
   initialize: () => void;
   /** Send a text message from the user */
-  sendMessage: (text: string, userId?: string) => Promise<void>;
+  sendMessage: (text: string, userId?: string, accentColor?: string, accentTextColor?: string) => Promise<void>;
   /** Start a specific calculator flow */
   startCalculator: (type: CalculatorType) => void;
   /** Submit a value for the current calculator step */
@@ -64,7 +64,7 @@ export const useAIChatStore = create<AIChatState>((set, get) => ({
     set({ messages: welcomeMessages });
   },
 
-  sendMessage: async (text: string, userId?: string) => {
+  sendMessage: async (text: string, userId?: string, accentColor?: string, accentTextColor?: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
 
@@ -77,6 +77,8 @@ export const useAIChatStore = create<AIChatState>((set, get) => ({
       type: 'text',
       text: trimmed,
       timestamp: Date.now(),
+      accentColor,
+      accentTextColor,
     };
 
     set({ messages: [...messages, userMessage], error: null });

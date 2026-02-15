@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { calculateEMI } from '@/src/utils/helpers';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 
 const ACCENT = '#ec4899'; // pink — matches hub card
 
@@ -385,6 +386,7 @@ export default function CalcCompareScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const { getButtonBg, getButtonText, getAccentColor } = useThemeColors();
 
   // Loan details
   const [propertyPrice, setPropertyPrice] = useState(1_500_000);
@@ -519,7 +521,7 @@ export default function CalcCompareScreen() {
           <View
             className="w-10 h-10 rounded-full items-center justify-center"
             style={{ backgroundColor: `${ACCENT}20` }}>
-            <Feather name="bar-chart-2" size={18} color={ACCENT} />
+            <Feather name="bar-chart-2" size={18} color={getAccentColor()} />
           </View>
         </View>
       </Animated.View>
@@ -919,11 +921,10 @@ export default function CalcCompareScreen() {
                 <Animated.View entering={FadeInUp.delay(600).duration(400)} className="mt-1">
                   <Pressable
                     onPress={() => router.push('/application' as any)}
-                    className={`rounded-2xl py-4 items-center flex-row justify-center ${
-                      isDark ? 'bg-white' : 'bg-black'
-                    }`}>
-                    <Feather name="file-text" size={16} color={isDark ? '#000' : '#fff'} />
-                    <Text className={`ml-2 text-base font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+                    style={{ backgroundColor: getButtonBg() }}
+                    className="rounded-2xl py-4 items-center flex-row justify-center">
+                    <Feather name="file-text" size={16} color={getButtonText()} />
+                    <Text style={{ color: getButtonText() }} className="ml-2 text-base font-bold">
                       Start Application
                     </Text>
                   </Pressable>

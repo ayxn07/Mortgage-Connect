@@ -28,6 +28,7 @@ import Animated, {
 import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { useAuthStore } from '@/src/store/authStore';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 import { useApplicationStore } from '@/src/store/applicationStore';
 import { calculateEMI, getMinDownPaymentPercent } from '@/src/utils/helpers';
 import { DatePickerField } from '@/components/DatePickerField';
@@ -275,6 +276,8 @@ function ChipSelect<T extends string>({
   label: string; options: { value: T; label: string }[];
   selected: T | ''; onSelect: (v: T) => void; isDark: boolean; required?: boolean;
 }) {
+  const { getButtonBg, getButtonText } = useThemeColors();
+  
   return (
     <View className="mb-4">
       <View className="flex-row items-center mb-2">
@@ -288,15 +291,15 @@ function ChipSelect<T extends string>({
             <Pressable
               key={opt.value}
               onPress={() => onSelect(opt.value)}
-              style={{ width: options.length === 2 ? '48%' : undefined }}
-              className={`${options.length === 2 ? '' : 'flex-1 min-w-[48%]'} px-4 py-3.5 rounded-2xl border ${
+              style={active ? { backgroundColor: getButtonBg(), borderColor: getButtonBg() } : undefined}
+              className={`${options.length === 2 ? 'w-[48%]' : 'flex-1 min-w-[48%]'} px-4 py-3.5 rounded-2xl border ${
                 active
-                  ? isDark ? 'bg-white border-white' : 'bg-black border-black'
+                  ? ''
                   : isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
               }`}>
-              <Text className={`text-sm font-semibold text-center ${
+              <Text style={active ? { color: getButtonText() } : undefined} className={`text-sm font-semibold text-center ${
                 active
-                  ? isDark ? 'text-black' : 'text-white'
+                  ? ''
                   : isDark ? 'text-gray-400' : 'text-gray-600'
               }`}>{opt.label}</Text>
             </Pressable>
@@ -316,6 +319,8 @@ function ToggleSwitch({
   label: string; value: boolean; onToggle: (v: boolean) => void;
   isDark: boolean; description?: string;
 }) {
+  const { getButtonBg } = useThemeColors();
+  
   return (
     <Pressable onPress={() => onToggle(!value)} className="flex-row items-center justify-between mb-4">
       <View className="flex-1 mr-4">
@@ -324,9 +329,9 @@ function ToggleSwitch({
           <Text className={`text-[11px] mt-0.5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{description}</Text>
         )}
       </View>
-      <View className={`w-12 h-7 rounded-full justify-center px-1 ${
+      <View style={value ? { backgroundColor: getButtonBg() } : undefined} className={`w-12 h-7 rounded-full justify-center px-1 ${
         value
-          ? isDark ? 'bg-white' : 'bg-black'
+          ? ''
           : isDark ? 'bg-[#2a2a2a]' : 'bg-gray-300'
       }`}>
         <View className={`w-5 h-5 rounded-full ${
@@ -505,14 +510,16 @@ function ConsentCheck({
   label: string; checked: boolean; onToggle: () => void;
   isDark: boolean; required?: boolean;
 }) {
+  const { getButtonBg, getButtonText } = useThemeColors();
+  
   return (
     <Pressable onPress={onToggle} className="flex-row items-start mb-4">
-      <View className={`w-6 h-6 rounded-lg border items-center justify-center mr-3 mt-0.5 ${
+      <View style={checked ? { backgroundColor: getButtonBg(), borderColor: getButtonBg() } : undefined} className={`w-6 h-6 rounded-lg border items-center justify-center mr-3 mt-0.5 ${
         checked
-          ? isDark ? 'bg-white border-white' : 'bg-black border-black'
+          ? ''
           : isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-300'
       }`}>
-        {checked && <Feather name="check" size={14} color={isDark ? '#000' : '#fff'} />}
+        {checked && <Feather name="check" size={14} color={getButtonText()} />}
       </View>
       <View className="flex-1">
         <Text className={`text-sm leading-5 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{label}</Text>
@@ -545,15 +552,15 @@ function MetricCard({
   label: string; value: string; icon: string;
   isDark: boolean; color?: string; large?: boolean;
 }) {
+  const { getButtonBg, getButtonText } = useThemeColors();
+  
   return (
     <View className={`${large ? 'flex-1' : ''} rounded-2xl p-4 border ${
       isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
     }`}>
       <View className="flex-row items-center mb-2">
-        <View className={`w-7 h-7 rounded-lg items-center justify-center ${
-          isDark ? 'bg-[#222]' : 'bg-gray-100'
-        }`}>
-          <Feather name={icon as any} size={13} color={color || (isDark ? '#fff' : '#000')} />
+        <View style={{ backgroundColor: getButtonBg() }} className="w-7 h-7 rounded-full items-center justify-center">
+          <Feather name={icon as any} size={13} color={getButtonText()} />
         </View>
       </View>
       <Text className={`${large ? 'text-xl' : 'text-base'} font-bold ${isDark ? 'text-white' : 'text-black'}`}>
@@ -626,6 +633,7 @@ export default function ApplicationScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const params = useLocalSearchParams();
   const { toast, showToast, hideToast } = useToast();
+  const { getButtonBg, getButtonText } = useThemeColors();
   
   // Check if we should load draft or start fresh
   const shouldLoadDraft = params.continueDraft === 'true';
@@ -1105,8 +1113,9 @@ export default function ApplicationScreen() {
           <Animated.View entering={FadeInUp.delay(600).duration(400)} className="w-full">
             <Pressable
               onPress={() => router.push('/my-applications' as any)}
-              className={`w-full rounded-2xl py-3.5 items-center mb-3 ${isDark ? 'bg-white' : 'bg-black'}`}>
-              <Text className={`text-base font-bold ${isDark ? 'text-black' : 'text-white'}`}>Track Application</Text>
+              style={{ backgroundColor: getButtonBg() }}
+              className="w-full rounded-2xl py-3.5 items-center mb-3">
+              <Text style={{ color: getButtonText() }} className="text-base font-bold">Track Application</Text>
             </Pressable>
             <Pressable
               onPress={() => router.back()}
@@ -1139,17 +1148,9 @@ export default function ApplicationScreen() {
                 router.back();
               }
             }}
-            className={`w-12 h-12 rounded-full items-center justify-center ${
-              isDark ? 'bg-white' : 'bg-black'
-            }`}
-            style={{
-              shadowColor: isDark ? '#fff' : '#000',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.15,
-              shadowRadius: 8,
-              elevation: 4,
-            }}>
-            <Feather name="arrow-left" size={22} color={isDark ? '#000' : '#fff'} />
+            style={{ backgroundColor: getButtonBg() }}
+            className="w-12 h-12 rounded-full items-center justify-center">
+            <Feather name="arrow-left" size={22} color={getButtonText()} />
           </Pressable>
           <View className="flex-1">
             {/* Progress bar */}
@@ -1158,7 +1159,7 @@ export default function ApplicationScreen() {
                 className="h-full rounded-full"
                 style={{
                   width: `${progress}%` as any,
-                  backgroundColor: isDark ? '#fff' : '#000',
+                  backgroundColor: getButtonBg(),
                 }}
               />
             </View>
@@ -1182,9 +1183,10 @@ export default function ApplicationScreen() {
               <Pressable
                 key={step.key}
                 onPress={() => goToStep(index)}
+                style={isCurrent ? { backgroundColor: getButtonBg() } : undefined}
                 className={`flex-row items-center px-4 py-2.5 rounded-full border ${
                   isCurrent
-                    ? isDark ? 'bg-white border-white' : 'bg-black border-black'
+                    ? 'border-transparent'
                     : isCompleted
                       ? 'bg-green-500/10 border-green-500/30'
                       : isDark ? 'bg-[#111] border-[#2a2a2a]' : 'bg-white border-gray-200'
@@ -1196,18 +1198,18 @@ export default function ApplicationScreen() {
                 ) : (
                   <View className={`w-5 h-5 rounded-full items-center justify-center mr-2 ${
                     isCurrent
-                      ? isDark ? 'bg-black/10' : 'bg-white/20'
+                      ? 'bg-white/20'
                       : isDark ? 'bg-[#2a2a2a]' : 'bg-gray-100'
                   }`}>
                     <Feather
                       name={step.icon as any} size={11}
-                      color={isCurrent ? (isDark ? '#000' : '#fff') : isDark ? '#666' : '#999'}
+                      color={isCurrent ? getButtonText() : isDark ? '#666' : '#999'}
                     />
                   </View>
                 )}
-                <Text className={`text-sm font-semibold ${
+                <Text style={isCurrent ? { color: getButtonText() } : undefined} className={`text-sm font-semibold ${
                   isCurrent
-                    ? isDark ? 'text-black' : 'text-white'
+                    ? ''
                     : isCompleted
                       ? 'text-green-500'
                       : isDark ? 'text-gray-500' : 'text-gray-500'
@@ -1542,11 +1544,11 @@ export default function ApplicationScreen() {
                   hint="Combined limit across all cards" />
 
                 {/* Auto-calculated total */}
-                <View className={`mt-2 p-4 rounded-2xl ${isDark ? 'bg-white' : 'bg-black'}`}>
-                  <Text className={`text-[10px] ${isDark ? 'text-black/50' : 'text-white/50'}`}>
+                <View style={{ backgroundColor: getButtonBg() }} className="mt-2 p-4 rounded-2xl">
+                  <Text style={{ color: getButtonText() }} className="text-[10px] opacity-50">
                     Total Monthly EMI (Auto-calculated)
                   </Text>
-                  <Text className={`text-xl font-bold mt-0.5 ${isDark ? 'text-black' : 'text-white'}`}>
+                  <Text style={{ color: getButtonText() }} className="text-xl font-bold mt-0.5">
                     {fmtAED(financial.totalMonthlyEMI)}
                   </Text>
                 </View>
@@ -1621,10 +1623,8 @@ export default function ApplicationScreen() {
                   </>
                 ) : (
                   <View className={`p-5 rounded-2xl items-center ${isDark ? 'bg-[#0d0d0d]' : 'bg-blue-50'}`}>
-                    <View className={`w-14 h-14 rounded-2xl items-center justify-center mb-3 ${
-                      isDark ? 'bg-[#1a1a1a]' : 'bg-blue-100'
-                    }`}>
-                      <Feather name="search" size={24} color={isDark ? '#6366f1' : '#3b82f6'} />
+                    <View style={{ backgroundColor: getButtonBg() }} className="w-14 h-14 rounded-2xl items-center justify-center mb-3">
+                      <Feather name="search" size={24} color={getButtonText()} />
                     </View>
                     <Text className={`text-sm font-semibold text-center ${isDark ? 'text-white' : 'text-black'}`}>
                       No property yet? No problem!
@@ -1697,18 +1697,19 @@ export default function ApplicationScreen() {
               {/* Hero Eligibility Card */}
               <Animated.View
                 entering={FadeInDown.delay(100).duration(400)}
-                className={`rounded-3xl p-6 mb-4 ${isDark ? 'bg-white' : 'bg-black'}`}>
+                style={{ backgroundColor: getButtonBg() }}
+                className="rounded-3xl p-6 mb-4">
                 <View className="flex-row items-center mb-3">
-                  <Feather name="bar-chart-2" size={18} color={isDark ? '#000' : '#fff'} />
-                  <Text className={`ml-2 text-base font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+                  <Feather name="bar-chart-2" size={18} color={getButtonText()} />
+                  <Text style={{ color: getButtonText() }} className="ml-2 text-base font-bold">
                     Eligibility Summary
                   </Text>
                 </View>
-                <Text className={`text-3xl font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+                <Text style={{ color: getButtonText() }} className="text-3xl font-bold">
                   {fmtAED(eligibility.estimatedEMI)}
-                  <Text className={`text-base font-normal ${isDark ? 'text-black/50' : 'text-white/50'}`}> /mo</Text>
+                  <Text style={{ color: getButtonText(), opacity: 0.5 }} className="text-base font-normal"> /mo</Text>
                 </Text>
-                <Text className={`text-xs mt-1 ${isDark ? 'text-black/40' : 'text-white/40'}`}>
+                <Text style={{ color: getButtonText(), opacity: 0.4 }} className="text-xs mt-1">
                   Estimated monthly installment
                 </Text>
 
@@ -2080,36 +2081,22 @@ export default function ApplicationScreen() {
           {currentStep < STEPS.length - 1 ? (
             <Pressable
               onPress={goNext}
-              className={`${currentStep === 0 ? 'flex-1' : 'flex-1'} rounded-2xl py-3.5 items-center ${isDark ? 'bg-white' : 'bg-black'}`}
-              style={{
-                shadowColor: isDark ? '#fff' : '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.2,
-                shadowRadius: 8,
-                elevation: 4,
-              }}>
-              <Text className={`text-base font-bold ${isDark ? 'text-black' : 'text-white'}`}>Continue</Text>
+              style={{ backgroundColor: getButtonBg() }}
+              className={`${currentStep === 0 ? 'flex-1' : 'flex-1'} rounded-2xl py-3.5 items-center`}>
+              <Text style={{ color: getButtonText() }} className="text-base font-bold">Continue</Text>
             </Pressable>
           ) : (
             <Pressable
               onPress={handleSubmit}
               disabled={loading}
-              className={`flex-1 rounded-2xl py-3.5 items-center flex-row justify-center ${
-                loading ? 'opacity-50' : ''
-              } ${isDark ? 'bg-white' : 'bg-black'}`}
-              style={{
-                shadowColor: isDark ? '#fff' : '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.2,
-                shadowRadius: 8,
-                elevation: 4,
-              }}>
+              style={{ backgroundColor: getButtonBg(), opacity: loading ? 0.5 : 1 }}
+              className="flex-1 rounded-2xl py-3.5 items-center flex-row justify-center">
               {loading ? (
-                <ActivityIndicator color={isDark ? '#000' : '#fff'} />
+                <ActivityIndicator color={getButtonText()} />
               ) : (
                 <>
-                  <Feather name="send" size={18} color={isDark ? '#000' : '#fff'} />
-                  <Text className={`ml-2 text-base font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+                  <Feather name="send" size={18} color={getButtonText()} />
+                  <Text style={{ color: getButtonText() }} className="ml-2 text-base font-bold">
                     Submit Application
                   </Text>
                 </>

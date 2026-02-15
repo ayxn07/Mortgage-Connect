@@ -55,6 +55,7 @@ import { subscribeToUsers, updateUserRole, deleteUser } from "@/lib/firestore";
 import { User, UserRole } from "@/lib/types";
 import { formatDistanceToNow, format } from "date-fns";
 import { toast } from "sonner";
+import { useTheme } from "@/lib/theme-context";
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -67,6 +68,7 @@ export default function UsersPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [newRole, setNewRole] = useState<UserRole>("user");
   const [actionLoading, setActionLoading] = useState(false);
+  const { themeColor } = useTheme();
 
   useEffect(() => {
     const unsub = subscribeToUsers((data) => {
@@ -129,9 +131,15 @@ export default function UsersPage() {
   };
 
   const roleColors: Record<string, string> = {
-    user: "bg-gray-100 text-gray-700",
-    agent: "bg-blue-100 text-blue-700",
-    admin: "bg-amber-100 text-amber-700",
+    user: themeColor === 'adaptive' 
+      ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+      : "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary",
+    agent: themeColor === 'adaptive'
+      ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+      : "bg-primary/15 text-primary dark:bg-primary/25 dark:text-primary",
+    admin: themeColor === 'adaptive'
+      ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+      : "bg-primary/20 text-primary dark:bg-primary/30 dark:text-primary",
   };
 
   if (loading) {
@@ -155,46 +163,46 @@ export default function UsersPage() {
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total</p>
                 <p className="text-2xl font-bold">{roleCounts.all}</p>
               </div>
-              <Users className="h-5 w-5 text-muted-foreground" />
+              <Users className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-muted-foreground' : 'text-primary'}`} />
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Users</p>
                 <p className="text-2xl font-bold">{roleCounts.user}</p>
               </div>
-              <Users className="h-5 w-5 text-gray-500" />
+              <Users className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-gray-500' : 'text-primary'}`} />
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Agents</p>
                 <p className="text-2xl font-bold">{roleCounts.agent}</p>
               </div>
-              <UserCheck className="h-5 w-5 text-blue-500" />
+              <UserCheck className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-blue-500' : 'text-primary'}`} />
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Admins</p>
                 <p className="text-2xl font-bold">{roleCounts.admin}</p>
               </div>
-              <Shield className="h-5 w-5 text-amber-500" />
+              <Shield className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-amber-500' : 'text-primary'}`} />
             </div>
           </CardContent>
         </Card>
@@ -202,7 +210,7 @@ export default function UsersPage() {
 
       {/* Filters */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-3">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

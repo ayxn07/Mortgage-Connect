@@ -239,6 +239,132 @@ export async function sendMessage(
 }
 
 /**
+ * Send an image message in a chat.
+ */
+export async function sendImageMessage(
+  chatId: string,
+  senderId: string,
+  senderName: string,
+  senderPhoto: string | null,
+  imageUrl: string,
+  fileName: string
+): Promise<void> {
+  const messagesCol = collection(db, "chats", chatId, "messages");
+  const msgRef = doc(messagesCol);
+  const messageId = msgRef.id;
+  const now = serverTimestamp();
+
+  const messageData = {
+    messageId,
+    senderId,
+    senderName,
+    senderPhoto,
+    type: "image" as MessageType,
+    content: {
+      mediaUrl: imageUrl,
+      fileName,
+    },
+    timestamp: now,
+    readBy: {
+      [senderId]: now,
+    },
+    edited: false,
+    deleted: false,
+  };
+
+  const batch = writeBatch(db);
+  batch.set(msgRef, messageData);
+
+  const chatDoc = await getDoc(doc(chatsCol, chatId));
+  const chat = chatDoc.data() as Chat;
+
+  const unreadUpdates: Record<string, unknown> = {};
+  for (const pid of chat.participantIds) {
+    if (pid !== senderId) {
+      unreadUpdates[`unreadCount.${pid}`] = increment(1);
+    }
+  }
+
+  batch.update(doc(chatsCol, chatId), {
+    lastMessage: {
+      text: "Sent an image",
+      senderId,
+      timestamp: now,
+      type: "image",
+    },
+    updatedAt: now,
+    ...unreadUpdates,
+  });
+
+  await batch.commit();
+}
+
+/**
+ * Send a document message in a chat.
+ */
+export async function sendDocumentMessage(
+  chatId: string,
+  senderId: string,
+  senderName: string,
+  senderPhoto: string | null,
+  documentUrl: string,
+  fileName: string,
+  fileSize: number,
+  mimeType: string
+): Promise<void> {
+  const messagesCol = collection(db, "chats", chatId, "messages");
+  const msgRef = doc(messagesCol);
+  const messageId = msgRef.id;
+  const now = serverTimestamp();
+
+  const messageData = {
+    messageId,
+    senderId,
+    senderName,
+    senderPhoto,
+    type: "document" as MessageType,
+    content: {
+      mediaUrl: documentUrl,
+      fileName,
+      fileSize,
+      mimeType,
+    },
+    timestamp: now,
+    readBy: {
+      [senderId]: now,
+    },
+    edited: false,
+    deleted: false,
+  };
+
+  const batch = writeBatch(db);
+  batch.set(msgRef, messageData);
+
+  const chatDoc = await getDoc(doc(chatsCol, chatId));
+  const chat = chatDoc.data() as Chat;
+
+  const unreadUpdates: Record<string, unknown> = {};
+  for (const pid of chat.participantIds) {
+    if (pid !== senderId) {
+      unreadUpdates[`unreadCount.${pid}`] = increment(1);
+    }
+  }
+
+  batch.update(doc(chatsCol, chatId), {
+    lastMessage: {
+      text: `Sent ${fileName}`,
+      senderId,
+      timestamp: now,
+      type: "document",
+    },
+    updatedAt: now,
+    ...unreadUpdates,
+  });
+
+  await batch.commit();
+}
+
+/**
  * Fetch messages with pagination (newest first).
  */
 export async function fetchMessages(

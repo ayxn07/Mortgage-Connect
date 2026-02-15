@@ -46,6 +46,7 @@ import {
   Users,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useTheme } from "@/lib/theme-context";
 
 export default function ChatsPage() {
   const { firebaseUser, userDoc } = useAuth();
@@ -54,6 +55,7 @@ export default function ChatsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "user_admin" | "agent_admin">("all");
+  const { themeColor } = useTheme();
 
   // New chat dialog
   const [newChatOpen, setNewChatOpen] = useState(false);
@@ -249,9 +251,9 @@ export default function ChatsPage() {
       {/* Stats Row */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${themeColor === 'adaptive' ? 'bg-primary/10' : 'bg-primary/10'}`}>
                 <MessageCircle className="h-5 w-5 text-primary" />
               </div>
               <div>
@@ -262,10 +264,10 @@ export default function ChatsPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
-                <Circle className="h-5 w-5 text-destructive fill-destructive" />
+              <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${themeColor === 'adaptive' ? 'bg-destructive/10' : 'bg-primary/10'}`}>
+                <Circle className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-destructive fill-destructive' : 'text-primary fill-primary'}`} />
               </div>
               <div>
                 <p className="text-2xl font-bold">
@@ -281,10 +283,10 @@ export default function ChatsPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
-                <Users className="h-5 w-5 text-muted-foreground" />
+              <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${themeColor === 'adaptive' ? 'bg-muted' : 'bg-primary/10'}`}>
+                <Users className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-muted-foreground' : 'text-primary'}`} />
               </div>
               <div>
                 <p className="text-2xl font-bold">
@@ -322,7 +324,7 @@ export default function ChatsPage() {
             return (
               <Link key={chat.chatId} href={`/dashboard/chats/${chat.chatId}`}>
                 <Card
-                  className={`cursor-pointer transition-all hover:shadow-md hover:border-primary/20 ${
+                  className={`cursor-pointer mb-4 transition-all hover:shadow-md hover:border-primary/20 ${
                     unread > 0 ? "border-primary/30 bg-primary/[0.02]" : ""
                   }`}
                 >
@@ -331,7 +333,7 @@ export default function ChatsPage() {
                       {/* Avatar */}
                       <div className="relative">
                         <Avatar className="h-12 w-12">
-                          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                          <AvatarFallback className={`font-semibold ${themeColor === 'adaptive' ? 'bg-primary/10 text-primary' : 'bg-primary/10 text-primary'}`}>
                             {other?.displayName?.charAt(0)?.toUpperCase() || "?"}
                           </AvatarFallback>
                         </Avatar>

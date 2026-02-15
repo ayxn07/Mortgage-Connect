@@ -28,12 +28,14 @@ import {
   uploadAndUpdateProfilePhoto,
   updateUserProfile,
 } from '@/src/services/profileService';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 
 export default function EditUserProfileScreen() {
   const router = useRouter();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { userDoc, firebaseUser, refreshUserDoc } = useAuthStore();
+  const { getButtonBg, getButtonText } = useThemeColors();
 
   // Form state
   const [displayName, setDisplayName] = useState(
@@ -163,16 +165,16 @@ export default function EditUserProfileScreen() {
         <TouchableOpacity
           onPress={handleSave}
           disabled={saving}
-          className={`h-10 flex-row items-center justify-center rounded-full px-5 ${
-            isDark ? 'bg-white' : 'bg-black'
-          }`}>
+          style={{ backgroundColor: getButtonBg() }}
+          className="h-10 flex-row items-center justify-center rounded-full px-5">
           {saving ? (
-            <ActivityIndicator size="small" color={isDark ? '#000' : '#fff'} />
+            <ActivityIndicator size="small" color={getButtonText()} />
           ) : (
             <>
-              <Save color={isDark ? '#000' : '#fff'} size={16} />
+              <Save color={getButtonText()} size={16} />
               <Text
-                className={`ml-2 font-semibold ${isDark ? 'text-black' : 'text-white'}`}>
+                style={{ color: getButtonText() }}
+                className="ml-2 font-semibold">
                 Save
               </Text>
             </>
@@ -204,10 +206,9 @@ export default function EditUserProfileScreen() {
             </View>
             {/* Camera badge */}
             <View
-              className={`absolute bottom-0 right-0 h-9 w-9 items-center justify-center rounded-full ${
-                isDark ? 'bg-white' : 'bg-black'
-              }`}>
-              <Camera color={isDark ? '#000' : '#fff'} size={16} />
+              style={{ backgroundColor: getButtonBg() }}
+              className="absolute bottom-0 right-0 h-9 w-9 items-center justify-center rounded-full">
+              <Camera color={getButtonText()} size={16} />
             </View>
           </TouchableOpacity>
           {uploadingPhoto && (
@@ -285,10 +286,9 @@ export default function EditUserProfileScreen() {
             }`}>
             <View className="flex-row items-center">
               <View
-                className={`h-8 w-8 items-center justify-center rounded-full ${
-                  isDark ? 'bg-white' : 'bg-black'
-                }`}>
-                <User color={isDark ? '#000' : '#fff'} size={14} />
+                style={{ backgroundColor: getButtonBg() }}
+                className="h-8 w-8 items-center justify-center rounded-full">
+                <User color={getButtonText()} size={14} />
               </View>
               <Text
                 className={`ml-3 font-semibold capitalize ${isDark ? 'text-white' : 'text-black'}`}>

@@ -7,6 +7,8 @@ import {
   subscribeToMessages,
   fetchChatById,
   sendMessage,
+  sendImageMessage,
+  sendDocumentMessage,
   markChatAsRead,
   setTypingStatus,
   setCurrentChat,
@@ -37,6 +39,9 @@ import {
   MoreVertical,
   Phone,
   Mail,
+  Paperclip,
+  Image as ImageIcon,
+  FileText,
 } from "lucide-react";
 import { format, isToday, isYesterday, formatDistanceToNow } from "date-fns";
 import {
@@ -49,6 +54,8 @@ import {
   Card,
   CardContent,
 } from "@/components/ui/card";
+import { storage } from "@/lib/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export default function ChatConversationPage() {
   const params = useParams();
@@ -61,10 +68,12 @@ export default function ChatConversationPage() {
   const [loading, setLoading] = useState(true);
   const [inputText, setInputText] = useState("");
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [otherPresence, setOtherPresence] = useState<UserPresence | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load chat details
@@ -154,6 +163,75 @@ export default function ChatConversationPage() {
     } finally {
       setSending(false);
       inputRef.current?.focus();
+    }
+  };
+
+  // Handle file upload
+  const handleFileUpload = async (file: File) => {
+    if (!firebaseUser || !userDoc || uploading) return;
+
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      alert("File size must be less than 10MB");
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      // Generate unique file path
+      const timestamp = Date.now();
+      const fileName = file.name;
+      const storageRef = ref(
+        storage,
+        `chats/${chatId}/${timestamp}/${fileName}`
+      );
+
+      // Upload file
+      await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(storageRef);
+
+      // Determine if it's an image or document
+      const isImage = file.type.startsWith("image/");
+
+      if (isImage) {
+        await sendImageMessage(
+          chatId,
+          firebaseUser.uid,
+          userDoc.displayName || "Admin",
+          userDoc.photoURL || null,
+          downloadUrl,
+          fileName
+        );
+      } else {
+        await sendDocumentMessage(
+          chatId,
+          firebaseUser.uid,
+          userDoc.displayName || "Admin",
+          userDoc.photoURL || null,
+          downloadUrl,
+          fileName,
+          file.size,
+          file.type
+        );
+      }
+    } catch (err) {
+      console.error("Failed to upload file:", err);
+      alert("Failed to upload file. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Handle file input change
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -349,25 +427,48 @@ export default function ChatConversationPage() {
                               </p>
                             </div>
                           )}
-                          <p className="whitespace-pre-wrap">
-                            {msg.content?.text || ""}
-                          </p>
+
+                          {/* Image message */}
                           {msg.content?.mediaUrl && msg.type === "image" && (
                             <img
                               src={msg.content.mediaUrl}
                               alt="shared"
-                              className="rounded-lg mt-1 max-w-full"
+                              className="rounded-lg max-w-full max-h-80 object-contain cursor-pointer"
+                              onClick={() => window.open(msg.content.mediaUrl, "_blank")}
                             />
                           )}
+
+                          {/* Document message */}
                           {msg.content?.mediaUrl && msg.type === "document" && (
                             <a
                               href={msg.content.mediaUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="underline text-xs mt-1 block"
+                              className={`flex items-center gap-2 p-2 rounded border ${
+                                isMine
+                                  ? "border-primary-foreground/20 hover:bg-primary-foreground/10"
+                                  : "border-border hover:bg-muted"
+                              }`}
                             >
-                              {msg.content.fileName || "Download file"}
+                              <FileText className="h-5 w-5 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium truncate">
+                                  {msg.content.fileName || "Document"}
+                                </p>
+                                {msg.content.fileSize && (
+                                  <p className="text-[10px] opacity-70">
+                                    {(msg.content.fileSize / 1024).toFixed(1)} KB
+                                  </p>
+                                )}
+                              </div>
                             </a>
+                          )}
+
+                          {/* Text message */}
+                          {msg.content?.text && (
+                            <p className="whitespace-pre-wrap">
+                              {msg.content.text}
+                            </p>
                           )}
                         </>
                       )}
@@ -436,6 +537,36 @@ export default function ChatConversationPage() {
       {/* Input Bar */}
       <div className="border-t pt-3 pb-2">
         <div className="flex items-center gap-2">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+            onChange={handleFileInputChange}
+            className="hidden"
+          />
+
+          {/* Attachment button */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={uploading || sending}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {uploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Paperclip className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Attach file</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           <Input
             ref={inputRef}
             placeholder="Type a message..."
@@ -446,11 +577,11 @@ export default function ChatConversationPage() {
             }}
             onKeyDown={handleKeyDown}
             className="flex-1"
-            disabled={sending}
+            disabled={sending || uploading}
           />
           <Button
             size="icon"
-            disabled={!inputText.trim() || sending}
+            disabled={!inputText.trim() || sending || uploading}
             onClick={handleSend}
           >
             {sending ? (

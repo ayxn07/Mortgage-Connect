@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from 'nativewind';
 import * as Haptics from 'expo-haptics';
 import { useChatStore } from '@/src/store/chatStore';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 
 const { width } = Dimensions.get('window');
 
@@ -22,6 +23,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const totalUnread = useChatStore((s) => s.totalUnread);
+  const { primaryColor, getAccentTextColor } = useThemeColors();
 
   const tabCount = state.routes.length;
   const tabWidth = (width - 72) / tabCount;
@@ -54,7 +56,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
           styles.indicator,
           {
             width: tabWidth - 8,  
-            backgroundColor: isDark ? '#fff' : '#000',
+            backgroundColor: primaryColor,
           },
           indicatorStyle,
         ]}
@@ -88,6 +90,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
             onPress={onPress}
             isDark={isDark}
             badge={route.name === 'chats' ? totalUnread : 0}
+            accentTextColor={getAccentTextColor()}
           />
         );
       })}
@@ -102,6 +105,7 @@ function TabButton({
   onPress,
   isDark,
   badge = 0,
+  accentTextColor,
 }: {
   label: string;
   iconName: string;
@@ -109,6 +113,7 @@ function TabButton({
   onPress: () => void;
   isDark: boolean;
   badge?: number;
+  accentTextColor: string;
 }) {
   const scale = useSharedValue(1);
   const iconOpacity = useSharedValue(isFocused ? 1 : 0.5);
@@ -152,7 +157,7 @@ function TabButton({
           <Feather
             name={iconName as any}
             size={24}
-            color={isFocused ? (isDark ? '#000' : '#fff') : isDark ? '#fff' : '#000'}
+            color={isFocused ? accentTextColor : isDark ? '#fff' : '#000'}
           />
           {badge > 0 && !isFocused && (
             <View
@@ -179,7 +184,7 @@ function TabButton({
             styles.label,
             animatedTextStyle,
             {
-              color: isFocused ? (isDark ? '#000' : '#fff') : isDark ? '#fff' : '#000',
+              color: isFocused ? accentTextColor : isDark ? '#fff' : '#000',
             },
           ]}>
           {label}

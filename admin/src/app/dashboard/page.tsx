@@ -51,6 +51,7 @@ import type {
   SupportQuery,
 } from "@/lib/types";
 import { formatDistanceToNow, format } from "date-fns";
+import { useTheme } from "@/lib/theme-context";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<EnhancedDashboardStats | null>(null);
@@ -59,6 +60,7 @@ export default function DashboardPage() {
   const [recentApps, setRecentApps] = useState<MortgageApplication[]>([]);
   const [recentTickets, setRecentTickets] = useState<SupportQuery[]>([]);
   const [loading, setLoading] = useState(true);
+  const { themeColor } = useTheme();
 
   useEffect(() => {
     async function load() {
@@ -144,13 +146,13 @@ export default function DashboardPage() {
       {/* Primary Stat Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-primary/5 rounded-bl-full" />
+          <div className={`absolute top-0 right-0 w-20 h-20 rounded-bl-full ${themeColor === 'adaptive' ? 'bg-primary/5' : 'bg-primary/5'}`} />
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Users
             </CardTitle>
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Users className="h-4 w-4 text-primary" />
+            <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${themeColor === 'adaptive' ? 'bg-primary/10' : 'bg-primary/10'}`}>
+              <Users className={`h-4 w-4 ${themeColor === 'adaptive' ? 'text-primary' : 'text-primary'}`} />
             </div>
           </CardHeader>
           <CardContent>
@@ -165,13 +167,13 @@ export default function DashboardPage() {
         </Card>
 
         <Card className="relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/5 rounded-bl-full" />
+          <div className={`absolute top-0 right-0 w-20 h-20 rounded-bl-full ${themeColor === 'adaptive' ? 'bg-purple-500/5' : 'bg-primary/5'}`} />
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Active Agents
             </CardTitle>
-            <div className="h-9 w-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
-              <UserCheck className="h-4 w-4 text-purple-500" />
+            <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${themeColor === 'adaptive' ? 'bg-purple-500/10' : 'bg-primary/10'}`}>
+              <UserCheck className={`h-4 w-4 ${themeColor === 'adaptive' ? 'text-purple-500' : 'text-primary'}`} />
             </div>
           </CardHeader>
           <CardContent>
@@ -183,13 +185,13 @@ export default function DashboardPage() {
         </Card>
 
         <Card className="relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 rounded-bl-full" />
+          <div className={`absolute top-0 right-0 w-20 h-20 rounded-bl-full ${themeColor === 'adaptive' ? 'bg-blue-500/5' : 'bg-primary/5'}`} />
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Applications
             </CardTitle>
-            <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
-              <FileText className="h-4 w-4 text-blue-500" />
+            <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${themeColor === 'adaptive' ? 'bg-blue-500/10' : 'bg-primary/10'}`}>
+              <FileText className={`h-4 w-4 ${themeColor === 'adaptive' ? 'text-blue-500' : 'text-primary'}`} />
             </div>
           </CardHeader>
           <CardContent>
@@ -203,13 +205,13 @@ export default function DashboardPage() {
         </Card>
 
         <Card className="relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/5 rounded-bl-full" />
+          <div className={`absolute top-0 right-0 w-20 h-20 rounded-bl-full ${themeColor === 'adaptive' ? 'bg-amber-500/5' : 'bg-primary/5'}`} />
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Support & Chats
             </CardTitle>
-            <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
-              <HeadphonesIcon className="h-4 w-4 text-amber-500" />
+            <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${themeColor === 'adaptive' ? 'bg-amber-500/10' : 'bg-primary/10'}`}>
+              <HeadphonesIcon className={`h-4 w-4 ${themeColor === 'adaptive' ? 'text-amber-500' : 'text-primary'}`} />
             </div>
           </CardHeader>
           <CardContent>
@@ -256,25 +258,28 @@ export default function DashboardPage() {
                   label: "Pending",
                   count: stats?.pendingApplications ?? 0,
                   icon: Clock,
-                  color: "text-amber-500",
-                  bg: "bg-amber-500/10",
-                  circleBg: "bg-amber-500/20",
+                  useTheme: themeColor !== 'adaptive',
+                  color: themeColor === 'adaptive' ? "text-amber-500" : "text-primary",
+                  bg: themeColor === 'adaptive' ? "bg-amber-500/10" : "bg-primary/10",
+                  circleBg: themeColor === 'adaptive' ? "bg-amber-500/20" : "bg-primary/20",
                 },
                 {
                   label: "Approved",
                   count: stats?.approvedApplications ?? 0,
                   icon: CheckCircle2,
-                  color: "text-green-500",
-                  bg: "bg-green-500/10",
-                  circleBg: "bg-green-500/20",
+                  useTheme: themeColor !== 'adaptive',
+                  color: themeColor === 'adaptive' ? "text-green-500" : "text-primary",
+                  bg: themeColor === 'adaptive' ? "bg-green-500/10" : "bg-primary/10",
+                  circleBg: themeColor === 'adaptive' ? "bg-green-500/20" : "bg-primary/20",
                 },
                 {
                   label: "Rejected",
                   count: stats?.rejectedApplications ?? 0,
                   icon: XCircle,
-                  color: "text-red-500",
-                  bg: "bg-red-500/10",
-                  circleBg: "bg-red-500/20",
+                  useTheme: themeColor !== 'adaptive',
+                  color: themeColor === 'adaptive' ? "text-red-500" : "text-primary",
+                  bg: themeColor === 'adaptive' ? "bg-red-500/10" : "bg-primary/10",
+                  circleBg: themeColor === 'adaptive' ? "bg-red-500/20" : "bg-primary/20",
                 },
                 {
                   label: "In Progress",
@@ -282,9 +287,10 @@ export default function DashboardPage() {
                     (stats?.applicationsByStatus?.["bank_approval"] ?? 0) +
                     (stats?.applicationsByStatus?.["property_valuation"] ?? 0),
                   icon: Activity,
-                  color: "text-blue-500",
-                  bg: "bg-blue-500/10",
-                  circleBg: "bg-blue-500/20",
+                  useTheme: themeColor !== 'adaptive',
+                  color: themeColor === 'adaptive' ? "text-blue-500" : "text-primary",
+                  bg: themeColor === 'adaptive' ? "bg-blue-500/10" : "bg-primary/10",
+                  circleBg: themeColor === 'adaptive' ? "bg-blue-500/20" : "bg-primary/20",
                 },
               ].map((item) => (
                 <div
@@ -313,7 +319,7 @@ export default function DashboardPage() {
                   {Object.entries(stats.applicationsByStatus).map(
                     ([status, count]) => {
                       const pct = (count / stats.totalApplications) * 100;
-                      const colors: Record<string, string> = {
+                      const colors: Record<string, string> = themeColor === 'adaptive' ? {
                         draft: "bg-gray-400",
                         submitted: "bg-blue-500",
                         pre_approval: "bg-amber-500",
@@ -323,6 +329,16 @@ export default function DashboardPage() {
                         disbursement: "bg-green-500",
                         rejected: "bg-red-500",
                         completed: "bg-green-600",
+                      } : {
+                        draft: "bg-primary/40",
+                        submitted: "bg-primary/50",
+                        pre_approval: "bg-primary/60",
+                        property_valuation: "bg-primary/70",
+                        bank_approval: "bg-primary/80",
+                        offer_letter: "bg-primary/90",
+                        disbursement: "bg-primary",
+                        rejected: "bg-red-500",
+                        completed: "bg-primary",
                       };
                       return (
                         <div
@@ -337,29 +353,40 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
                   {Object.entries(stats.applicationsByStatus).map(
-                    ([status, count]) => (
-                      <div
-                        key={status}
-                        className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
-                      >
+                    ([status, count]) => {
+                      const colors: Record<string, string> = themeColor === 'adaptive' ? {
+                        draft: "bg-gray-400",
+                        submitted: "bg-blue-500",
+                        pre_approval: "bg-amber-500",
+                        property_valuation: "bg-purple-500",
+                        bank_approval: "bg-indigo-500",
+                        offer_letter: "bg-emerald-500",
+                        disbursement: "bg-green-500",
+                        rejected: "bg-red-500",
+                        completed: "bg-green-600",
+                      } : {
+                        draft: "bg-primary/40",
+                        submitted: "bg-primary/50",
+                        pre_approval: "bg-primary/60",
+                        property_valuation: "bg-primary/70",
+                        bank_approval: "bg-primary/80",
+                        offer_letter: "bg-primary/90",
+                        disbursement: "bg-primary",
+                        rejected: "bg-red-500",
+                        completed: "bg-primary",
+                      };
+                      return (
                         <div
-                          className={`h-2 w-2 rounded-full ${
-                            {
-                              draft: "bg-gray-400",
-                              submitted: "bg-blue-500",
-                              pre_approval: "bg-amber-500",
-                              property_valuation: "bg-purple-500",
-                              bank_approval: "bg-indigo-500",
-                              offer_letter: "bg-emerald-500",
-                              disbursement: "bg-green-500",
-                              rejected: "bg-red-500",
-                              completed: "bg-green-600",
-                            }[status] || "bg-gray-400"
-                          }`}
-                        />
-                        {status.replace(/_/g, " ")} ({count})
-                      </div>
-                    )
+                          key={status}
+                          className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
+                        >
+                          <div
+                            className={`h-2 w-2 rounded-full ${colors[status] || "bg-gray-400"}`}
+                          />
+                          {status.replace(/_/g, " ")} ({count})
+                        </div>
+                      );
+                    }
                   )}
                 </div>
               </div>
@@ -381,13 +408,26 @@ export default function DashboardPage() {
                   stats.totalUsers > 0
                     ? Math.round((count / stats.totalUsers) * 100)
                     : 0;
+                
+                const adaptiveColors: Record<string, string> = {
+                  user: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                  agent: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+                  admin: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                };
+                
+                const adaptiveBarColors: Record<string, string> = {
+                  user: "bg-blue-500",
+                  agent: "bg-purple-500",
+                  admin: "bg-red-500",
+                };
+                
                 return (
                   <div key={role}>
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2">
                         <div
                           className={`h-7 w-7 rounded-md flex items-center justify-center ${
-                            roleColors[role] || "bg-muted"
+                            themeColor === 'adaptive' ? adaptiveColors[role] : "bg-primary/10 text-primary"
                           }`}
                         >
                           <Icon className="h-3.5 w-3.5" />
@@ -402,11 +442,7 @@ export default function DashboardPage() {
                       <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${
-                            {
-                              user: "bg-blue-500",
-                              agent: "bg-purple-500",
-                              admin: "bg-red-500",
-                            }[role] || "bg-primary"
+                            themeColor === 'adaptive' ? adaptiveBarColors[role] : "bg-primary"
                           }`}
                           style={{ width: `${pct}%` }}
                         />
@@ -438,63 +474,71 @@ export default function DashboardPage() {
           </Link>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {recentUsers.map((user) => (
-            <Card
-              key={user.uid}
-              className="group hover:shadow-lg hover:border-primary/20 transition-all"
-            >
-              <CardContent className="pt-6">
-                {/* User Header */}
-                <div className="flex items-start gap-3 mb-4">
-                  <Avatar className="h-11 w-11">
-                    <AvatarFallback className="bg-primary/10 text-primary font-semibold text-sm">
-                      {user.displayName?.charAt(0)?.toUpperCase() || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold truncate">
-                      {user.displayName || "Unnamed"}
-                    </h3>
-                    <Badge
-                      variant="secondary"
-                      className={`text-[10px] mt-0.5 ${
-                        roleColors[user.role] || ""
-                      }`}
-                    >
-                      {user.role}
-                    </Badge>
-                  </div>
-                </div>
-
-                <Separator className="mb-3" />
-
-                {/* User Details */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Mail className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{user.email}</span>
-                  </div>
-                  {user.phone && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Phone className="h-3 w-3 shrink-0" />
-                      <span>{user.phone}</span>
+          {recentUsers.map((user) => {
+            const adaptiveRoleColors: Record<string, string> = {
+              user: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+              agent: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+              admin: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+            };
+            
+            return (
+              <Card
+                key={user.uid}
+                className="group hover:shadow-lg hover:border-primary/20 transition-all"
+              >
+                <CardContent className="pt-2">
+                  {/* User Header */}
+                  <div className="flex items-start gap-3 mb-4">
+                    <Avatar className="h-11 w-11">
+                      <AvatarFallback className={themeColor === 'adaptive' ? "bg-primary/10 text-primary font-semibold text-sm" : "bg-primary/10 text-primary font-semibold text-sm"}>
+                        {user.displayName?.charAt(0)?.toUpperCase() || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold truncate">
+                        {user.displayName || "Unnamed"}
+                      </h3>
+                      <Badge
+                        variant="secondary"
+                        className={`text-[10px] mt-0.5 ${
+                          themeColor === 'adaptive' ? adaptiveRoleColors[user.role] : "bg-primary/10 text-primary"
+                        }`}
+                      >
+                        {user.role}
+                      </Badge>
                     </div>
-                  )}
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3 shrink-0" />
-                    <span>
-                      Joined{" "}
-                      {user.createdAt?.toDate
-                        ? formatDistanceToNow(user.createdAt.toDate(), {
-                            addSuffix: true,
-                          })
-                        : "recently"}
-                    </span>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+
+                  <Separator className="mb-3" />
+
+                  {/* User Details */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Mail className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{user.email}</span>
+                    </div>
+                    {user.phone && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Phone className="h-3 w-3 shrink-0" />
+                        <span>{user.phone}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3 shrink-0" />
+                      <span>
+                        Joined{" "}
+                        {user.createdAt?.toDate
+                          ? formatDistanceToNow(user.createdAt.toDate(), {
+                              addSuffix: true,
+                            })
+                          : "recently"}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
@@ -522,11 +566,11 @@ export default function DashboardPage() {
                   key={agent.uid}
                   className="group hover:shadow-lg hover:border-primary/20 transition-all"
                 >
-                  <CardContent className="pt-6">
+                  <CardContent className="pt-3">
                     {/* Agent Header */}
                     <div className="flex items-start gap-3 mb-3">
                       <Avatar className="h-11 w-11">
-                        <AvatarFallback className="bg-purple-500/10 text-purple-600 font-semibold text-sm">
+                        <AvatarFallback className={themeColor === 'adaptive' ? "bg-purple-500/10 text-purple-600 font-semibold text-sm" : "bg-primary/10 text-primary font-semibold text-sm"}>
                           {agent.displayName?.charAt(0)?.toUpperCase() || "A"}
                         </AvatarFallback>
                       </Avatar>
@@ -638,7 +682,7 @@ export default function DashboardPage() {
                     className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
                   >
                     <Avatar className="h-9 w-9">
-                      <AvatarFallback className="text-xs bg-blue-500/10 text-blue-600">
+                      <AvatarFallback className={themeColor === 'adaptive' ? "text-xs bg-blue-500/10 text-blue-600" : "text-xs bg-primary/10 text-primary"}>
                         {app.applicantIdentity?.fullName
                           ?.charAt(0)
                           ?.toUpperCase() || "?"}
@@ -697,57 +741,66 @@ export default function DashboardPage() {
               </p>
             ) : (
               <div className="space-y-3">
-                {recentTickets.map((ticket) => (
-                  <div
-                    key={ticket.queryId}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
-                  >
-                    <div
-                      className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${
-                        ticket.status === "open"
+                {recentTickets.map((ticket) => {
+                  const getTicketColors = () => {
+                    if (themeColor === 'adaptive') {
+                      return {
+                        bg: ticket.status === "open"
                           ? "bg-blue-500/10"
                           : ticket.status === "in_progress"
                           ? "bg-amber-500/10"
-                          : "bg-green-500/10"
-                      }`}
+                          : "bg-green-500/10",
+                        icon: ticket.status === "open"
+                          ? "text-blue-500"
+                          : ticket.status === "in_progress"
+                          ? "text-amber-500"
+                          : "text-green-500"
+                      };
+                    }
+                    return {
+                      bg: "bg-primary/10",
+                      icon: "text-primary"
+                    };
+                  };
+                  
+                  const colors = getTicketColors();
+                  
+                  return (
+                    <div
+                      key={ticket.queryId}
+                      className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
                     >
-                      <HeadphonesIcon
-                        className={`h-4 w-4 ${
-                          ticket.status === "open"
-                            ? "text-blue-500"
-                            : ticket.status === "in_progress"
-                            ? "text-amber-500"
-                            : "text-green-500"
-                        }`}
-                      />
+                      <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${colors.bg}`}>
+                        <HeadphonesIcon className={`h-4 w-4 ${colors.icon}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {ticket.subject}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {ticket.name} &middot; {ticket.category}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <Badge
+                          variant="secondary"
+                          className={`text-[10px] ${
+                            supportStatusColors[ticket.status] || ""
+                          }`}
+                        >
+                          {ticket.status.replace(/_/g, " ")}
+                        </Badge>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {ticket.createdAt?.toDate
+                            ? formatDistanceToNow(ticket.createdAt.toDate(), {
+                                addSuffix: true,
+                              })
+                            : ""}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {ticket.subject}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {ticket.name} &middot; {ticket.category}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <Badge
-                        variant="secondary"
-                        className={`text-[10px] ${
-                          supportStatusColors[ticket.status] || ""
-                        }`}
-                      >
-                        {ticket.status.replace(/_/g, " ")}
-                      </Badge>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {ticket.createdAt?.toDate
-                          ? formatDistanceToNow(ticket.createdAt.toDate(), {
-                              addSuffix: true,
-                            })
-                          : ""}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -765,7 +818,7 @@ export default function DashboardPage() {
             <Link href="/dashboard/users">
               <Button
                 variant="outline"
-                className="w-full h-auto py-4 flex flex-col items-center gap-2"
+                className="w-full h-auto py-4 flex flex-col items-center gap-2 hover:bg-primary/5 hover:text-primary hover:border-primary/20 transition-colors"
               >
                 <Users className="h-5 w-5" />
                 <span className="text-xs">Manage Users</span>
@@ -774,7 +827,7 @@ export default function DashboardPage() {
             <Link href="/dashboard/applications">
               <Button
                 variant="outline"
-                className="w-full h-auto py-4 flex flex-col items-center gap-2"
+                className="w-full h-auto py-4 flex flex-col items-center gap-2 hover:bg-primary/5 hover:text-primary hover:border-primary/20 transition-colors"
               >
                 <FileText className="h-5 w-5" />
                 <span className="text-xs">Review Apps</span>
@@ -783,7 +836,7 @@ export default function DashboardPage() {
             <Link href="/dashboard/chats">
               <Button
                 variant="outline"
-                className="w-full h-auto py-4 flex flex-col items-center gap-2"
+                className="w-full h-auto py-4 flex flex-col items-center gap-2 hover:bg-primary/5 hover:text-primary hover:border-primary/20 transition-colors"
               >
                 <MessageCircle className="h-5 w-5" />
                 <span className="text-xs">Open Chats</span>
@@ -792,7 +845,7 @@ export default function DashboardPage() {
             <Link href="/dashboard/analytics">
               <Button
                 variant="outline"
-                className="w-full h-auto py-4 flex flex-col items-center gap-2"
+                className="w-full h-auto py-4 flex flex-col items-center gap-2 hover:bg-primary/5 hover:text-primary hover:border-primary/20 transition-colors"
               >
                 <TrendingUp className="h-5 w-5" />
                 <span className="text-xs">Analytics</span>

@@ -24,6 +24,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
 import { useConversation } from '@/src/hooks/useChat';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 import { ArrowLeft } from '@/components/Icons';
 import { getInitials, formatRelativeTime } from '@/src/utils/formatters';
 
@@ -36,6 +37,7 @@ function AttachmentPicker({
   onGallery,
   onDocument,
   isDark,
+  accentColor,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -43,11 +45,12 @@ function AttachmentPicker({
   onGallery: () => void;
   onDocument: () => void;
   isDark: boolean;
+  accentColor: string;
 }) {
   const options = [
-    { icon: 'camera', label: 'Take Photo', onPress: onCamera, color: '#3b82f6' },
-    { icon: 'image', label: 'Photo Library', onPress: onGallery, color: '#8b5cf6' },
-    { icon: 'file-text', label: 'Send File', onPress: onDocument, color: '#f59e0b' },
+    { icon: 'camera', label: 'Take Photo', onPress: onCamera },
+    { icon: 'image', label: 'Photo Library', onPress: onGallery },
+    { icon: 'file-text', label: 'Send File', onPress: onDocument },
   ];
 
   return (
@@ -120,12 +123,12 @@ function AttachmentPicker({
                   width: 48,
                   height: 48,
                   borderRadius: 24,
-                  backgroundColor: `${option.color}15`,
+                  backgroundColor: `${accentColor}15`,
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginRight: 16,
                 }}>
-                <Feather name={option.icon as any} size={22} color={option.color} />
+                <Feather name={option.icon as any} size={22} color={accentColor} />
               </View>
               <Text
                 style={{
@@ -172,8 +175,10 @@ function AttachmentPicker({
 
 // ─── Custom Bubble ────────────────────────────────────────────────────────────
 
-function CustomBubble(props: BubbleProps<IMessage> & { extraData: { isDark: boolean } }) {
+function CustomBubble(props: BubbleProps<IMessage> & { extraData: { isDark: boolean; accentColor: string; accentTextColor: string } }) {
   const isDark = props.extraData?.isDark ?? false;
+  const accentColor = props.extraData?.accentColor ?? (isDark ? '#fff' : '#000');
+  const accentTextColor = props.extraData?.accentTextColor ?? (isDark ? '#000' : '#fff');
   const currentMessage = props.currentMessage as any;
 
   // Document message - custom render
@@ -197,9 +202,7 @@ function CustomBubble(props: BubbleProps<IMessage> & { extraData: { isDark: bool
           }
         }}
         style={{
-          backgroundColor: isMe
-            ? isDark ? '#fff' : '#000'
-            : isDark ? '#1a1a1a' : '#fff',
+          backgroundColor: isMe ? accentColor : isDark ? '#1a1a1a' : '#fff',
           borderRadius: 16,
           borderBottomRightRadius: isMe ? 4 : 16,
           borderBottomLeftRadius: isMe ? 16 : 4,
@@ -216,7 +219,7 @@ function CustomBubble(props: BubbleProps<IMessage> & { extraData: { isDark: bool
               height: 40,
               borderRadius: 10,
               backgroundColor: isMe
-                ? isDark ? '#e5e5e5' : '#333'
+                ? accentTextColor === '#fff' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'
                 : isDark ? '#252525' : '#f5f5f5',
               alignItems: 'center',
               justifyContent: 'center',
@@ -226,7 +229,7 @@ function CustomBubble(props: BubbleProps<IMessage> & { extraData: { isDark: bool
               name="file-text"
               size={18}
               color={isMe
-                ? isDark ? '#333' : '#ccc'
+                ? accentTextColor
                 : isDark ? '#888' : '#666'}
             />
           </View>
@@ -236,9 +239,7 @@ function CustomBubble(props: BubbleProps<IMessage> & { extraData: { isDark: bool
               style={{
                 fontSize: 13,
                 fontWeight: '600',
-                color: isMe
-                  ? isDark ? '#000' : '#fff'
-                  : isDark ? '#e5e5e5' : '#1a1a1a',
+                color: isMe ? accentTextColor : isDark ? '#e5e5e5' : '#1a1a1a',
               }}>
               {doc.fileName}
             </Text>
@@ -248,7 +249,7 @@ function CustomBubble(props: BubbleProps<IMessage> & { extraData: { isDark: bool
                   fontSize: 11,
                   marginTop: 2,
                   color: isMe
-                    ? isDark ? '#666' : 'rgba(255,255,255,0.5)'
+                    ? accentTextColor === '#fff' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'
                     : isDark ? '#666' : '#999',
                 }}>
                 {fileSizeStr}
@@ -259,7 +260,7 @@ function CustomBubble(props: BubbleProps<IMessage> & { extraData: { isDark: bool
             name="download"
             size={16}
             color={isMe
-              ? isDark ? '#666' : 'rgba(255,255,255,0.5)'
+              ? accentTextColor === '#fff' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'
               : isDark ? '#555' : '#999'}
             style={{ marginLeft: 8 }}
           />
@@ -299,7 +300,7 @@ function CustomBubble(props: BubbleProps<IMessage> & { extraData: { isDark: bool
       {...props}
       wrapperStyle={{
         right: {
-          backgroundColor: isDark ? '#fff' : '#000',
+          backgroundColor: accentColor,
           borderRadius: 16,
           borderBottomRightRadius: 4,
           paddingVertical: 2,
@@ -317,7 +318,7 @@ function CustomBubble(props: BubbleProps<IMessage> & { extraData: { isDark: bool
       }}
       textStyle={{
         right: {
-          color: isDark ? '#000' : '#fff',
+          color: accentTextColor,
           fontSize: 15,
           lineHeight: 21,
         },
@@ -365,8 +366,10 @@ function CustomDay(props: DayProps & { extraData: { isDark: boolean } }) {
 
 // ─── Custom Time ──────────────────────────────────────────────────────────────
 
-function CustomTime(props: TimeProps<IMessage> & { extraData: { isDark: boolean } }) {
+function CustomTime(props: TimeProps<IMessage> & { extraData: { isDark: boolean; accentColor: string; accentTextColor: string } }) {
   const isDark = props.extraData?.isDark ?? false;
+  const accentColor = props.extraData?.accentColor ?? (isDark ? '#fff' : '#000');
+  const accentTextColor = props.extraData?.accentTextColor ?? (isDark ? '#000' : '#fff');
   const currentMessage = props.currentMessage as any;
   const isMe = props.position === 'right';
 
@@ -380,7 +383,7 @@ function CustomTime(props: TimeProps<IMessage> & { extraData: { isDark: boolean 
         <Feather
           name="check-circle"
           size={11}
-          color="#3b82f6"
+          color={accentColor}
           style={{ marginLeft: 3 }}
         />
       );
@@ -392,7 +395,7 @@ function CustomTime(props: TimeProps<IMessage> & { extraData: { isDark: boolean 
         <Feather
           name="check"
           size={11}
-          color={isDark ? '#666' : 'rgba(255,255,255,0.4)'}
+          color={accentTextColor === '#fff' ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'}
           style={{ marginLeft: 3 }}
         />
       );
@@ -403,7 +406,7 @@ function CustomTime(props: TimeProps<IMessage> & { extraData: { isDark: boolean 
       <Feather
         name="clock"
         size={10}
-        color={isDark ? '#666' : 'rgba(255,255,255,0.4)'}
+        color={accentTextColor === '#fff' ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'}
         style={{ marginLeft: 3 }}
       />
     );
@@ -417,7 +420,7 @@ function CustomTime(props: TimeProps<IMessage> & { extraData: { isDark: boolean 
             fontSize: 10,
             fontStyle: 'italic',
             color: isMe
-              ? isDark ? '#666' : 'rgba(255,255,255,0.4)'
+              ? accentTextColor === '#fff' ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'
               : isDark ? '#555' : '#bbb',
             marginRight: 4,
           }}>
@@ -429,7 +432,7 @@ function CustomTime(props: TimeProps<IMessage> & { extraData: { isDark: boolean 
         timeTextStyle={{
           right: {
             fontSize: 10,
-            color: isDark ? '#666' : 'rgba(255,255,255,0.4)',
+            color: accentTextColor === '#fff' ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)',
           },
           left: {
             fontSize: 10,
@@ -444,8 +447,10 @@ function CustomTime(props: TimeProps<IMessage> & { extraData: { isDark: boolean 
 
 // ─── Custom Send Button ───────────────────────────────────────────────────────
 
-function CustomSend(props: SendProps<IMessage> & { extraData: { isDark: boolean } }) {
+function CustomSend(props: SendProps<IMessage> & { extraData: { isDark: boolean; accentColor: string; accentTextColor: string } }) {
   const isDark = props.extraData?.isDark ?? false;
+  const accentColor = props.extraData?.accentColor ?? (isDark ? '#fff' : '#000');
+  const accentTextColor = props.extraData?.accentTextColor ?? (isDark ? '#000' : '#fff');
   const hasText = props.text && props.text.trim().length > 0;
 
   return (
@@ -462,18 +467,14 @@ function CustomSend(props: SendProps<IMessage> & { extraData: { isDark: boolean 
           width: 40,
           height: 40,
           borderRadius: 20,
-          backgroundColor: hasText
-            ? isDark ? '#fff' : '#000'
-            : isDark ? '#1a1a1a' : '#e5e5e5',
+          backgroundColor: hasText ? accentColor : isDark ? '#1a1a1a' : '#e5e5e5',
           alignItems: 'center',
           justifyContent: 'center',
         }}>
         <Feather
           name="send"
           size={16}
-          color={hasText
-            ? isDark ? '#000' : '#fff'
-            : isDark ? '#555' : '#aaa'}
+          color={hasText ? accentTextColor : isDark ? '#555' : '#aaa'}
           style={{ marginLeft: 1 }}
         />
       </View>
@@ -588,6 +589,7 @@ export default function ChatConversationScreen() {
   const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const { getAccentColor, getButtonBg, getButtonText } = useThemeColors();
 
   const chatId = params.chatId;
 
@@ -665,9 +667,11 @@ export default function ChatConversationScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        quality: 0.8,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: false,
+        allowsMultipleSelection: false,
+        quality: 0.8,
+        exif: false,
       });
 
       if (result.canceled || !result.assets?.[0]) return;
@@ -679,6 +683,7 @@ export default function ChatConversationScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       await sendImage(asset.uri, fileName);
     } catch (err: any) {
+      console.error('[Chat] Image picker error:', err);
       Alert.alert('Error', err.message || 'Failed to send image');
     } finally {
       setIsUploading(false);
@@ -695,9 +700,10 @@ export default function ChatConversationScreen() {
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        quality: 0.8,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: false,
+        quality: 0.8,
+        exif: false,
       });
 
       if (result.canceled || !result.assets?.[0]) return;
@@ -709,6 +715,7 @@ export default function ChatConversationScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       await sendImage(asset.uri, fileName);
     } catch (err: any) {
+      console.error('[Chat] Camera error:', err);
       Alert.alert('Error', err.message || 'Failed to send photo');
     } finally {
       setIsUploading(false);
@@ -833,6 +840,7 @@ export default function ChatConversationScreen() {
         onGallery={handlePickImage}
         onDocument={handlePickDocument}
         isDark={isDark}
+        accentColor={getAccentColor()}
       />
 
       {/* Header */}
@@ -1027,12 +1035,12 @@ export default function ChatConversationScreen() {
             _id: userId || '',
           }}
           // Custom renders
-          renderBubble={(props) => <CustomBubble {...props} extraData={{ isDark }} />}
+          renderBubble={(props) => <CustomBubble {...props} extraData={{ isDark, accentColor: getButtonBg(), accentTextColor: getButtonText() }} />}
           renderDay={(props) => <CustomDay {...props} extraData={{ isDark }} />}
-          renderTime={(props) => <CustomTime {...props} extraData={{ isDark }} />}
+          renderTime={(props) => <CustomTime {...props} extraData={{ isDark, accentColor: getAccentColor(), accentTextColor: getButtonText() }} />}
           
           renderMessageImage={(props) => <CustomMessageImage {...props} />}
-          renderSend={(props) => <CustomSend {...props} extraData={{ isDark }} />}
+          renderSend={(props) => <CustomSend {...props} extraData={{ isDark, accentColor: getButtonBg(), accentTextColor: getButtonText() }} />}
           // Custom input toolbar
           renderInputToolbar={(props) => (
             <InputToolbar
@@ -1096,13 +1104,13 @@ export default function ChatConversationScreen() {
                   width: 36,
                   height: 36,
                   borderRadius: 18,
-                  backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
+                  backgroundColor: `${getAccentColor()}20`,
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderWidth: 1,
-                  borderColor: isDark ? '#252525' : '#eee',
+                  borderColor: `${getAccentColor()}30`,
                 }}>
-                <Feather name="plus" size={20} color={isDark ? '#888' : '#666'} />
+                <Feather name="plus" size={20} color={getAccentColor()} />
               </View>
             </TouchableOpacity>
           )}

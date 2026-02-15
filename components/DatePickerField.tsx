@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { View, Text, TextInput, Pressable, Modal, ScrollView, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 
 interface DatePickerFieldProps {
   label: string;
@@ -26,6 +27,7 @@ export function DatePickerField({
 }: DatePickerFieldProps) {
   const [focused, setFocused] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  const { getButtonBg, getButtonText } = useThemeColors();
 
   // Parse DD/MM/YYYY to Date object
   const parseDate = (dateStr: string): Date => {
@@ -142,13 +144,9 @@ export function DatePickerField({
                     onChangeText(formatDate(tempDate));
                     setShowPicker(false);
                   }}
-                  className={`px-6 py-3 rounded-xl ${
-                    isDark ? 'bg-white' : 'bg-black'
-                  }`}>
-                  <Text
-                    className={`text-sm font-bold ${
-                      isDark ? 'text-black' : 'text-white'
-                    }`}>
+                  style={{ backgroundColor: getButtonBg() }}
+                  className="px-6 py-3 rounded-xl">
+                  <Text style={{ color: getButtonText() }} className="text-sm font-bold">
                     Done
                   </Text>
                 </Pressable>
@@ -195,19 +193,15 @@ export function DatePickerField({
                           newDate.setDate(day);
                           setTempDate(newDate);
                         }}
+                        style={isSelected ? { backgroundColor: getButtonBg() } : undefined}
                         className={`h-12 justify-center items-center rounded-xl mx-1 ${
-                          isSelected
-                            ? isDark
-                              ? 'bg-white'
-                              : 'bg-black'
-                            : ''
+                          isSelected ? '' : ''
                         }`}>
                         <Text
+                          style={isSelected ? { color: getButtonText() } : undefined}
                           className={`text-lg font-bold ${
                             isSelected
-                              ? isDark
-                                ? 'text-black'
-                                : 'text-white'
+                              ? ''
                               : isDark
                               ? 'text-gray-600'
                               : 'text-gray-400'
@@ -239,19 +233,15 @@ export function DatePickerField({
                           newDate.setMonth(index);
                           setTempDate(newDate);
                         }}
+                        style={isSelected ? { backgroundColor: getButtonBg() } : undefined}
                         className={`h-12 justify-center items-center rounded-xl mx-1 ${
-                          isSelected
-                            ? isDark
-                              ? 'bg-white'
-                              : 'bg-black'
-                            : ''
+                          isSelected ? '' : ''
                         }`}>
                         <Text
+                          style={isSelected ? { color: getButtonText() } : undefined}
                           className={`text-base font-bold ${
                             isSelected
-                              ? isDark
-                                ? 'text-black'
-                                : 'text-white'
+                              ? ''
                               : isDark
                               ? 'text-gray-600'
                               : 'text-gray-400'
@@ -283,19 +273,15 @@ export function DatePickerField({
                           newDate.setFullYear(year);
                           setTempDate(newDate);
                         }}
+                        style={isSelected ? { backgroundColor: getButtonBg() } : undefined}
                         className={`h-12 justify-center items-center rounded-xl mx-1 ${
-                          isSelected
-                            ? isDark
-                              ? 'bg-white'
-                              : 'bg-black'
-                            : ''
+                          isSelected ? '' : ''
                         }`}>
                         <Text
+                          style={isSelected ? { color: getButtonText() } : undefined}
                           className={`text-lg font-bold ${
                             isSelected
-                              ? isDark
-                                ? 'text-black'
-                                : 'text-white'
+                              ? ''
                               : isDark
                               ? 'text-gray-600'
                               : 'text-gray-400'
@@ -353,10 +339,9 @@ export function DatePickerField({
         {/* Calendar Button */}
         <Pressable
           onPress={() => setShowPicker(true)}
-          className={`w-12 h-12 rounded-2xl items-center justify-center border ${
-            isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
-          }`}>
-          <Feather name="calendar" size={20} color={isDark ? '#fff' : '#000'} />
+          style={{ backgroundColor: getButtonBg() }}
+          className="w-12 h-12 rounded-2xl items-center justify-center">
+          <Feather name="calendar" size={20} color={getButtonText()} />
         </Pressable>
       </View>
 

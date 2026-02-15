@@ -57,6 +57,7 @@ import {
 import { Agent, Review } from "@/lib/types";
 import { formatDistanceToNow, format } from "date-fns";
 import { toast } from "sonner";
+import { useTheme } from "@/lib/theme-context";
 
 export default function AgentsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -66,6 +67,7 @@ export default function AgentsPage() {
   const [showDetail, setShowDetail] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
+  const { themeColor } = useTheme();
 
   useEffect(() => {
     loadAgents();
@@ -157,18 +159,18 @@ export default function AgentsPage() {
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Agents</p>
                 <p className="text-2xl font-bold">{agents.length}</p>
               </div>
-              <UserCheck className="h-5 w-5 text-muted-foreground" />
+              <UserCheck className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-muted-foreground' : 'text-primary'}`} />
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Available</p>
@@ -176,29 +178,29 @@ export default function AgentsPage() {
                   {agents.filter((a) => a.availability).length}
                 </p>
               </div>
-              <ToggleRight className="h-5 w-5 text-green-500" />
+              <ToggleRight className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-green-500' : 'text-primary'}`} />
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Avg Rating</p>
                 <p className="text-2xl font-bold">{avgRating}</p>
               </div>
-              <Star className="h-5 w-5 text-amber-500" />
+              <Star className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-amber-500' : 'text-primary'}`} />
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Projects</p>
                 <p className="text-2xl font-bold">{totalProjects}</p>
               </div>
-              <TrendingUp className="h-5 w-5 text-blue-500" />
+              <TrendingUp className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-blue-500' : 'text-primary'}`} />
             </div>
           </CardContent>
         </Card>
@@ -206,7 +208,7 @@ export default function AgentsPage() {
 
       {/* Search */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -251,8 +253,8 @@ export default function AgentsPage() {
                   <TableRow key={agent.uid}>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                          <span className="text-xs font-medium text-blue-700">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${themeColor === 'adaptive' ? 'bg-blue-100' : 'bg-primary/10'}`}>
+                          <span className={`text-xs font-medium ${themeColor === 'adaptive' ? 'text-blue-700' : 'text-primary'}`}>
                             {agent.displayName?.charAt(0)?.toUpperCase() || "?"}
                           </span>
                         </div>
@@ -303,8 +305,10 @@ export default function AgentsPage() {
                         variant="secondary"
                         className={
                           agent.availability
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-500"
+                            ? themeColor === 'adaptive'
+                              ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                              : "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary"
+                            : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
                         }
                       >
                         {agent.availability ? "Available" : "Unavailable"}
@@ -360,8 +364,8 @@ export default function AgentsPage() {
             <div className="space-y-6">
               {/* Agent Profile */}
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center">
-                  <span className="text-xl font-bold text-blue-700">
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center ${themeColor === 'adaptive' ? 'bg-blue-100' : 'bg-primary/10'}`}>
+                  <span className={`text-xl font-bold ${themeColor === 'adaptive' ? 'text-blue-700' : 'text-primary'}`}>
                     {selectedAgent.displayName?.charAt(0)?.toUpperCase()}
                   </span>
                 </div>
@@ -377,8 +381,10 @@ export default function AgentsPage() {
                       variant="secondary"
                       className={
                         selectedAgent.availability
-                          ? "bg-green-100 text-green-700"
-                          : "bg-gray-100 text-gray-500"
+                          ? themeColor === 'adaptive'
+                            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                            : "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary"
+                          : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
                       }
                     >
                       {selectedAgent.availability ? "Available" : "Unavailable"}

@@ -9,11 +9,14 @@ import {
   ChevronRight,
   Shield,
   Edit3,
+  Palette,
 } from '@/components/Icons';
 import { useRouter } from 'expo-router';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useColorScheme } from 'nativewind';
 import { useAuthStore } from '@/src/store/authStore';
+import { useThemeColor } from '@/src/contexts/ThemeColorContext';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 
 type SettingItemProps = {
   icon: React.ReactNode;
@@ -22,6 +25,7 @@ type SettingItemProps = {
   onPress?: () => void;
   showChevron?: boolean;
   rightElement?: React.ReactNode;
+  useAccentColor?: boolean;
 };
 
 function SettingItem({
@@ -31,9 +35,11 @@ function SettingItem({
   onPress,
   showChevron = true,
   rightElement,
+  useAccentColor = false,
 }: SettingItemProps) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { primaryColor, getIconColor } = useThemeColors();
 
   return (
     <TouchableOpacity
@@ -42,8 +48,9 @@ function SettingItem({
       disabled={!onPress}
       className={`mb-3 flex-row items-center rounded-2xl border p-4 ${isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
         }`}>
-      <View className={`mr-3 h-10 w-10 items-center justify-center rounded-xl ${isDark ? 'bg-white' : 'bg-black'
-        }`}>
+      <View
+        className="mr-3 h-10 w-10 items-center justify-center rounded-xl"
+        style={useAccentColor ? { backgroundColor: primaryColor } : { backgroundColor: isDark ? '#fff' : '#000' }}>
         {icon}
       </View>
       <View className="flex-1">
@@ -79,6 +86,8 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { themeColor } = useThemeColor();
+  const { primaryColor, getIconColor, getButtonBg, getButtonText } = useThemeColors();
 
   // Auth store — real user data
   const { userDoc, firebaseUser, signOut } = useAuthStore();
@@ -213,9 +222,10 @@ export default function SettingsScreen() {
               <View className="relative mb-4">
                 <View
                   className={`h-20 w-20 items-center justify-center rounded-full border-4 overflow-hidden ${
-                    isDark ? 'bg-white border-[#1a1a1a]' : 'bg-black border-white'
+                    isDark ? 'border-[#1a1a1a]' : 'border-white'
                   }`}
                   style={{
+                    backgroundColor: photoURL ? 'transparent' : getButtonBg(),
                     shadowColor: '#000',
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.2,
@@ -229,7 +239,7 @@ export default function SettingsScreen() {
                       resizeMode="cover"
                     />
                   ) : (
-                    <Text className={`text-2xl font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+                    <Text style={{ color: getButtonText() }} className="text-2xl font-bold">
                       {initials}
                     </Text>
                   )}
@@ -274,10 +284,9 @@ export default function SettingsScreen() {
 
                 {/* Edit Icon */}
                 <View
-                  className={`h-9 w-9 items-center justify-center rounded-full ${
-                    isDark ? 'bg-[#2a2a2a]' : 'bg-gray-100'
-                  }`}>
-                  <Edit3 color={isDark ? '#fff' : '#000'} size={16} />
+                  className="h-9 w-9 items-center justify-center rounded-full"
+                  style={{ backgroundColor: primaryColor }}>
+                  <Edit3 color={getIconColor()} size={16} />
                 </View>
               </View>
             </View>
@@ -289,10 +298,11 @@ export default function SettingsScreen() {
           <View className="mb-6">
             <SectionHeader title="Administration" />
             <SettingItem
-              icon={<Shield color={isDark ? '#000' : '#fff'} size={20} />}
+              icon={<Shield color={getIconColor()} size={20} />}
               title="Admin Dashboard"
               subtitle="Manage users, apps & analytics"
               onPress={() => router.push('/admin' as any)}
+              useAccentColor={true}
             />
           </View>
         )}
@@ -301,10 +311,18 @@ export default function SettingsScreen() {
         <View className="mb-6">
           <SectionHeader title="Preferences" />
           <SettingItem
-            icon={<Globe color={isDark ? '#000' : '#fff'} size={20} />}
+            icon={<Palette color={getIconColor()} size={20} />}
+            title="Theme Colors"
+            subtitle={`Current: ${themeColor.charAt(0).toUpperCase() + themeColor.slice(1)}`}
+            onPress={() => router.push('/theme-selector' as any)}
+            useAccentColor={true}
+          />
+          <SettingItem
+            icon={<Globe color={getIconColor()} size={20} />}
             title="Language"
             subtitle="English"
             onPress={() => Alert.alert('Language', 'Select your language')}
+            useAccentColor={true}
           />
         </View>
 
@@ -312,16 +330,18 @@ export default function SettingsScreen() {
         <View className="mb-6">
           <SectionHeader title="Support" />
           <SettingItem
-            icon={<HelpCircle color={isDark ? '#000' : '#fff'} size={20} />}
+            icon={<HelpCircle color={getIconColor()} size={20} />}
             title="Help Center"
             subtitle="FAQs and support"
             onPress={() => router.push('/support')}
+            useAccentColor={true}
           />
           <SettingItem
-            icon={<FileText color={isDark ? '#000' : '#fff'} size={20} />}
+            icon={<FileText color={getIconColor()} size={20} />}
             title="Terms & Privacy"
             subtitle="Legal information"
             onPress={() => Alert.alert('Legal', 'View terms and privacy policy')}
+            useAccentColor={true}
           />
         </View>
 

@@ -17,6 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useFeatureFlags } from '@/src/hooks/useFeatureFlags';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -151,6 +152,10 @@ function ToolCard({
 }) {
   const router = useRouter();
   const scale = useSharedValue(1);
+  const { isAdaptive, primaryColor } = useThemeColors();
+
+  // Use tool's gradient color for adaptive theme, accent color for others
+  const cardColor = isAdaptive ? tool.gradient : primaryColor;
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -176,7 +181,7 @@ function ToolCard({
         <View className="absolute -right-12 -top-12 opacity-[0.04]">
           <View
             className="w-48 h-48 rounded-full"
-            style={{ backgroundColor: tool.gradient }}
+            style={{ backgroundColor: cardColor }}
           />
         </View>
 
@@ -185,8 +190,8 @@ function ToolCard({
           <View className="absolute top-4 right-4">
             <View
               className="px-2.5 py-1 rounded-full"
-              style={{ backgroundColor: `${tool.gradient}20` }}>
-              <Text style={{ color: tool.gradient }} className="text-[10px] font-bold">
+              style={{ backgroundColor: `${cardColor}20` }}>
+              <Text style={{ color: cardColor }} className="text-[10px] font-bold">
                 {tool.badge}
               </Text>
             </View>
@@ -196,8 +201,8 @@ function ToolCard({
         {/* Icon */}
         <View
           className="w-12 h-12 rounded-2xl items-center justify-center mb-4"
-          style={{ backgroundColor: `${tool.gradient}15` }}>
-          <Feather name={tool.icon as any} size={22} color={tool.gradient} />
+          style={{ backgroundColor: `${cardColor}15` }}>
+          <Feather name={tool.icon as any} size={22} color={cardColor} />
         </View>
 
         {/* Text */}
@@ -223,10 +228,10 @@ function ToolCard({
         <View className="flex-row items-center mt-1">
           <Text
             className="text-xs font-semibold mr-1"
-            style={{ color: tool.gradient }}>
+            style={{ color: cardColor }}>
             {isHero ? 'Calculate Now' : 'Open'}
           </Text>
-          <Feather name="arrow-right" size={12} color={tool.gradient} />
+          <Feather name="arrow-right" size={12} color={cardColor} />
         </View>
       </AnimatedPressable>
       </Animated.View>
@@ -242,6 +247,7 @@ export default function CalculatorScreen() {
   const isDark = colorScheme === 'dark';
   const router = useRouter();
   const { flags } = useFeatureFlags();
+  const { getButtonBg, getButtonText } = useThemeColors();
 
   // Filter tools based on feature flags
   const visibleTools = tools.filter((tool) => {
@@ -319,32 +325,30 @@ export default function CalculatorScreen() {
           entering={FadeInDown.delay(600).duration(400)}
           className="px-6 mt-6">
           <View
-            className={`rounded-3xl p-6 ${isDark ? 'bg-white' : 'bg-black'}`}>
+            style={{ backgroundColor: getButtonBg() }}
+            className="rounded-3xl p-6">
             <View className="flex-row items-start justify-between">
               <View className="flex-1 pr-4">
-                <Text className={`text-lg font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+                <Text style={{ color: getButtonText() }} className="text-lg font-bold">
                   Ready to Apply?
                 </Text>
                 <Text
-                  className={`text-sm mt-1.5 leading-5 ${
-                    isDark ? 'text-gray-600' : 'text-gray-400'
-                  }`}>
+                  style={{ color: getButtonText(), opacity: 0.7 }}
+                  className="text-sm mt-1.5 leading-5">
                   Done calculating? Start your mortgage application now.
                 </Text>
               </View>
               <View
-                className={`w-12 h-12 rounded-2xl items-center justify-center ${
-                  isDark ? 'bg-black' : 'bg-white'
-                }`}>
-                <Feather name="file-text" size={22} color={isDark ? '#fff' : '#000'} />
+                style={{ backgroundColor: `${getButtonText()}20` }}
+                className="w-12 h-12 rounded-2xl items-center justify-center">
+                <Feather name="file-text" size={22} color={getButtonText()} />
               </View>
             </View>
             <Pressable
               onPress={() => router.push('/application' as any)}
-              className={`mt-4 rounded-xl py-3.5 items-center ${
-                isDark ? 'bg-black' : 'bg-white'
-              }`}>
-              <Text className={`font-semibold ${isDark ? 'text-white' : 'text-black'}`}>
+              style={{ backgroundColor: `${getButtonText()}20` }}
+              className="mt-4 rounded-xl py-3.5 items-center">
+              <Text style={{ color: getButtonText() }} className="font-semibold">
                 Start Application
               </Text>
             </Pressable>

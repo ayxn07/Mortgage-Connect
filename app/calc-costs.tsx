@@ -19,6 +19,7 @@ import Animated, {
 import { Feather } from '@expo/vector-icons';
 import { calculateUpfrontCosts, getMinDownPaymentPercent } from '@/src/utils/helpers';
 import type { Emirate, PropertyReadinessType } from '@/src/utils/helpers';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 
 // =====================================================================
 // Formatters
@@ -270,6 +271,7 @@ export default function CalcCostsScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const { getButtonBg, getButtonText, getAccentColor } = useThemeColors();
 
   // --- Inputs ---
   const [propertyPrice, setPropertyPrice] = useState(1_500_000);
@@ -347,8 +349,8 @@ export default function CalcCostsScreen() {
           </View>
           <View
             className="w-10 h-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: '#f59e0b20' }}>
-            <Feather name="file-text" size={18} color="#f59e0b" />
+            style={{ backgroundColor: `${getAccentColor()}20` }}>
+            <Feather name="file-text" size={18} color={getAccentColor()} />
           </View>
         </View>
       </Animated.View>
@@ -614,18 +616,17 @@ export default function CalcCostsScreen() {
                 <FeeRow label="Total Fees" value={costs.totalFees} isDark={isDark} bold />
               </View>
 
-              {/* Hero: Total Upfront Cash */}
+                {/* Hero: Total Upfront Cash */}
               <View
-                className={`rounded-2xl p-5 border ${
-                  isDark ? 'bg-white border-white' : 'bg-black border-black'
-                }`}>
-                <Text className={`text-xs font-medium mb-1 ${isDark ? 'text-black/50' : 'text-white/50'}`}>
+                style={{ backgroundColor: getButtonBg(), borderColor: getButtonBg() }}
+                className="rounded-2xl p-5 border">
+                <Text style={{ color: getButtonText(), opacity: 0.5 }} className="text-xs font-medium mb-1">
                   Total Upfront Cash Needed
                 </Text>
-                <Text className={`text-2xl font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+                <Text style={{ color: getButtonText() }} className="text-2xl font-bold">
                   {fmtAED(costs.totalUpfrontCash)}
                 </Text>
-                <Text className={`text-[10px] mt-1 ${isDark ? 'text-black/40' : 'text-white/40'}`}>
+                <Text style={{ color: getButtonText(), opacity: 0.4 }} className="text-[10px] mt-1">
                   Down Payment ({fmtAED(downPayment)}) + Fees ({fmtAED(costs.totalFees)})
                 </Text>
               </View>
@@ -684,11 +685,10 @@ export default function CalcCostsScreen() {
               <Animated.View entering={FadeInUp.delay(400).duration(400)} className="mt-5">
                 <Pressable
                   onPress={() => router.push('/calc-emi' as any)}
-                  className={`rounded-2xl py-4 items-center flex-row justify-center ${
-                    isDark ? 'bg-white' : 'bg-black'
-                  }`}>
-                  <Feather name="credit-card" size={16} color={isDark ? '#000' : '#fff'} />
-                  <Text className={`ml-2 text-base font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+                  style={{ backgroundColor: getButtonBg() }}
+                  className="rounded-2xl py-4 items-center flex-row justify-center">
+                  <Feather name="credit-card" size={16} color={getButtonText()} />
+                  <Text style={{ color: getButtonText() }} className="ml-2 text-base font-bold">
                     Calculate EMI
                   </Text>
                 </Pressable>

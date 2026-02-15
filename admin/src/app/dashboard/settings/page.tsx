@@ -23,8 +23,12 @@ import {
   Shield,
   Zap,
   AlertTriangle,
+  Palette,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTheme } from "@/lib/theme-context";
+import { THEME_COLORS, ThemeColor } from "@/lib/theme-config";
 
 interface FeatureFlags {
   aiAssistantEnabled: boolean;
@@ -38,6 +42,15 @@ export default function SettingsPage() {
   const [flags, setFlags] = useState<FeatureFlags>(DEFAULT_FLAGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { theme, themeColor, setThemeColor } = useTheme();
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [circleStyle, setCircleStyle] = useState({
+    x: 0,
+    y: 0,
+    visible: false,
+    size: 0,
+    color: '#000000',
+  });
 
   // Subscribe to feature flags in real-time
   useEffect(() => {
@@ -92,6 +105,65 @@ export default function SettingsPage() {
     }
   };
 
+  const handleThemeColorChange = (
+    color: ThemeColor,
+    e: React.MouseEvent<HTMLButtonElement>
+  ) => {
+    if (isAnimating) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+
+    // Get the color for animation
+    const themeConfig = THEME_COLORS.find((c) => c.name === color);
+    const animationColor = theme === 'light' 
+      ? themeConfig?.lightColor || '#000000'
+      : themeConfig?.darkColor || '#ffffff';
+
+    setIsAnimating(true);
+
+    // Phase 1: Start with small circle
+    setCircleStyle({
+      x,
+      y,
+      visible: true,
+      size: 0,
+      color: animationColor,
+    });
+
+    // Phase 2: Expand to full screen (450ms)
+    setTimeout(() => {
+      setCircleStyle((prev) => ({ ...prev, size: 1 }));
+
+      // Phase 3: Apply theme at peak of expansion
+      setTimeout(() => {
+        setThemeColor(color);
+        toast.success(`Theme changed to ${themeConfig?.label}`);
+
+        // Phase 4: Start shrinking back (10ms after change)
+        setTimeout(() => {
+          setCircleStyle((prev) => ({ ...prev, size: 2 }));
+
+          // Phase 5: Remove overlay after shrink completes
+          setTimeout(() => {
+            setCircleStyle((prev) => ({ ...prev, visible: false }));
+            setIsAnimating(false);
+          }, 450);
+        }, 10);
+      }, 450);
+    }, 10);
+  };
+
+  // Compute the max radius needed to cover the entire screen from (x,y) - increased by 20%
+  const maxRadius =
+    typeof window !== 'undefined'
+      ? Math.sqrt(
+          Math.max(circleStyle.x, window.innerWidth - circleStyle.x) ** 2 +
+            Math.max(circleStyle.y, window.innerHeight - circleStyle.y) ** 2
+        ) * 1.2
+      : 2400;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -109,6 +181,63 @@ export default function SettingsPage() {
           Manage app-wide feature flags and configuration
         </p>
       </div>
+
+      {/* Theme Customization Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Palette className="h-5 w-5 text-muted-foreground" />
+            <CardTitle className="text-lg">Theme Customization</CardTitle>
+          </div>
+          <CardDescription>
+            Customize the appearance of your admin dashboard with different color themes.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label className="text-sm font-medium mb-3 block">Color Theme</Label>
+            <div className="grid grid-cols-3 gap-3">
+              {THEME_COLORS.map((color) => {
+                const isSelected = themeColor === color.name;
+                const displayColor = theme === 'light' ? color.lightColor : color.darkColor;
+                
+                return (
+                  <button
+                    key={color.name}
+                    onClick={(e) => handleThemeColorChange(color.name as ThemeColor, e)}
+                    disabled={isAnimating}
+                    className="group relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all hover:border-primary/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      borderColor: isSelected ? (color.isGradient ? '#667eea' : displayColor) : 'transparent',
+                      backgroundColor: isSelected ? (color.isGradient ? '#667eea10' : `${displayColor}10`) : 'transparent',
+                    }}
+                  >
+                    <div
+                      className="w-12 h-12 rounded-full transition-transform group-hover:scale-110 flex items-center justify-center"
+                      style={
+                        color.isGradient
+                          ? { background: displayColor }
+                          : { backgroundColor: displayColor }
+                      }
+                    >
+                      {isSelected && <Check className="h-5 w-5 text-white" />}
+                    </div>
+                    <span className="text-xs font-medium">{color.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+            <Palette className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+            <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+              Theme colors are saved locally and will persist across sessions. The selected color
+              affects primary UI elements like buttons, links, and the sidebar logo circle.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Feature Flags Section */}
       <Card>
@@ -205,6 +334,35 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Circle Animation Overlay */}
+      {circleStyle.visible && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            pointerEvents: 'none',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              left: circleStyle.x,
+              top: circleStyle.y,
+              width: circleStyle.size === 0 ? 0 : circleStyle.size === 1 ? maxRadius * 2 : 0,
+              height: circleStyle.size === 0 ? 0 : circleStyle.size === 1 ? maxRadius * 2 : 0,
+              borderRadius: '50%',
+              background: circleStyle.color.startsWith('linear-gradient') 
+                ? circleStyle.color 
+                : circleStyle.color,
+              transform: 'translate(-50%, -50%)',
+              transition: 'width 450ms cubic-bezier(0.4, 0, 0.2, 1), height 450ms cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

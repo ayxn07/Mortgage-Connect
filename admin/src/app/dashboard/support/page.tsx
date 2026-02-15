@@ -64,6 +64,7 @@ import {
 import { SupportQuery, SupportStatus } from "@/lib/types";
 import { formatDistanceToNow, format } from "date-fns";
 import { toast } from "sonner";
+import { useTheme } from "@/lib/theme-context";
 
 const STATUS_OPTIONS: {
   value: SupportStatus;
@@ -109,10 +110,10 @@ function getStatusInfo(status: string) {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  general: "bg-blue-50 text-blue-600",
-  technical: "bg-purple-50 text-purple-600",
-  billing: "bg-green-50 text-green-600",
-  feedback: "bg-amber-50 text-amber-600",
+  general: "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
+  technical: "bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
+  billing: "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400",
+  feedback: "bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
 };
 
 export default function SupportPage() {
@@ -127,6 +128,7 @@ export default function SupportPage() {
   const [showResponseDialog, setShowResponseDialog] = useState(false);
   const [responseText, setResponseText] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const { themeColor } = useTheme();
 
   useEffect(() => {
     const unsub = subscribeToSupportQueries((data) => {
@@ -206,7 +208,7 @@ export default function SupportPage() {
       <div className="grid gap-4 md:grid-cols-4">
         {STATUS_OPTIONS.map((s) => (
           <Card key={s.value}>
-            <CardContent className="pt-6">
+            <CardContent className="pt-3">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">{s.label}</p>
@@ -216,13 +218,15 @@ export default function SupportPage() {
                 </div>
                 <s.icon
                   className={`h-5 w-5 ${
-                    s.value === "open"
-                      ? "text-blue-500"
-                      : s.value === "in_progress"
-                        ? "text-amber-500"
-                        : s.value === "resolved"
-                          ? "text-green-500"
-                          : "text-gray-400"
+                    themeColor === 'adaptive'
+                      ? s.value === "open"
+                        ? "text-blue-500"
+                        : s.value === "in_progress"
+                          ? "text-amber-500"
+                          : s.value === "resolved"
+                            ? "text-green-500"
+                            : "text-gray-400"
+                      : "text-primary"
                   }`}
                 />
               </div>
@@ -233,7 +237,7 @@ export default function SupportPage() {
 
       {/* Filters */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-3">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

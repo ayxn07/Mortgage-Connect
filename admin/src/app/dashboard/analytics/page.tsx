@@ -8,6 +8,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@/components/ui/chart";
+import type { ChartConfig } from "@/components/ui/chart";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -43,22 +51,12 @@ import {
   Bar,
   XAxis,
   YAxis,
-  Tooltip,
-  Legend,
   CartesianGrid,
+  Label,
 } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
-
-const PIE_COLORS = [
-  "#18181b",
-  "#3b82f6",
-  "#f59e0b",
-  "#8b5cf6",
-  "#6366f1",
-  "#10b981",
-  "#ef4444",
-  "#22c55e",
-];
+import { useTheme } from "@/lib/theme-context";
+import { getThemeColor } from "@/lib/theme-config";
 
 export default function AnalyticsPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -66,6 +64,7 @@ export default function AnalyticsPage() {
   const [applications, setApplications] = useState<MortgageApplication[]>([]);
   const [tickets, setTickets] = useState<SupportQuery[]>([]);
   const [loading, setLoading] = useState(true);
+  const { themeColor, theme } = useTheme();
 
   useEffect(() => {
     async function load() {
@@ -109,6 +108,72 @@ export default function AnalyticsPage() {
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [users]);
 
+  // Chart colors based on theme
+  const chartColors = useMemo(() => {
+    const primaryColor = getThemeColor(themeColor, theme);
+    
+    if (themeColor === 'adaptive') {
+      return [
+        "#667eea",
+        "#764ba2", 
+        "#f093fb",
+        "#4facfe",
+        "#43e97b",
+        "#fa709a",
+        "#fee140",
+        "#30cfd0",
+      ];
+    }
+    
+    // Generate shades of the primary color
+    return [
+      primaryColor,
+      `${primaryColor}dd`,
+      `${primaryColor}bb`,
+      `${primaryColor}99`,
+      `${primaryColor}77`,
+      `${primaryColor}55`,
+      `${primaryColor}33`,
+      `${primaryColor}22`,
+    ];
+  }, [themeColor, theme]);
+
+  // Chart config for status
+  const statusChartConfig = useMemo(() => {
+    const config: ChartConfig = {};
+    statusData.forEach((item, index) => {
+      config[item.name] = {
+        label: item.name,
+        color: chartColors[index % chartColors.length],
+      };
+    });
+    return config;
+  }, [statusData, chartColors]);
+
+  // Chart config for roles
+  const roleChartConfig = useMemo(() => {
+    const config: ChartConfig = {};
+    roleData.forEach((item, index) => {
+      config[item.name] = {
+        label: item.name,
+        color: chartColors[index % chartColors.length],
+      };
+    });
+    return config;
+  }, [roleData, chartColors]);
+
+  // Chart config for monthly growth
+  const monthlyChartConfig: ChartConfig = useMemo(() => ({
+    users: {
+      label: "New Users",
+      color: themeColor === 'adaptive' ? "#667eea" : getThemeColor(themeColor, theme),
+    },
+    applications: {
+      label: "Applications",
+      color: themeColor === 'adaptive' ? "#764ba2" : `${getThemeColor(themeColor, theme)}99`,
+    },
+  }), [themeColor, theme]);
+
   // Monthly user growth (last 6 months)
   const monthlyGrowth = useMemo(() => {
     const months = [];
@@ -144,6 +209,18 @@ export default function AnalyticsPage() {
     });
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [tickets]);
+
+  // Chart config for categories
+  const categoryChartConfig = useMemo(() => {
+    const config: ChartConfig = {};
+    categoryData.forEach((item, index) => {
+      config[item.name] = {
+        label: item.name,
+        color: chartColors[index % chartColors.length],
+      };
+    });
+    return config;
+  }, [categoryData, chartColors]);
 
   // Top agents by rating
   const topAgents = useMemo(() => {
@@ -181,46 +258,46 @@ export default function AnalyticsPage() {
       {/* Key Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Users</p>
                 <p className="text-3xl font-bold">{users.length}</p>
               </div>
-              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                <Users className="h-5 w-5" />
+              <div className={`h-10 w-10 rounded-full flex items-center justify-center ${themeColor === 'adaptive' ? 'bg-muted' : 'bg-primary/10'}`}>
+                <Users className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-muted-foreground' : 'text-primary'}`} />
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Active Agents</p>
                 <p className="text-3xl font-bold">{agents.length}</p>
               </div>
-              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                <UserCheck className="h-5 w-5" />
+              <div className={`h-10 w-10 rounded-full flex items-center justify-center ${themeColor === 'adaptive' ? 'bg-muted' : 'bg-primary/10'}`}>
+                <UserCheck className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-muted-foreground' : 'text-primary'}`} />
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Applications</p>
                 <p className="text-3xl font-bold">{applications.length}</p>
               </div>
-              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                <FileText className="h-5 w-5" />
+              <div className={`h-10 w-10 rounded-full flex items-center justify-center ${themeColor === 'adaptive' ? 'bg-muted' : 'bg-primary/10'}`}>
+                <FileText className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-muted-foreground' : 'text-primary'}`} />
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">
@@ -230,8 +307,8 @@ export default function AnalyticsPage() {
                   AED {(totalPropertyValue / 1000000).toFixed(1)}M
                 </p>
               </div>
-              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                <TrendingUp className="h-5 w-5" />
+              <div className={`h-10 w-10 rounded-full flex items-center justify-center ${themeColor === 'adaptive' ? 'bg-muted' : 'bg-primary/10'}`}>
+                <TrendingUp className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-muted-foreground' : 'text-primary'}`} />
               </div>
             </div>
           </CardContent>
@@ -254,31 +331,28 @@ export default function AnalyticsPage() {
                 No application data
               </p>
             ) : (
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={statusData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                      dataKey="value"
-                      label={({ name, value }) => `${name}: ${value}`}
-                      labelLine={false}
-                    >
-                      {statusData.map((_, index) => (
-                        <Cell
-                          key={index}
-                          fill={PIE_COLORS[index % PIE_COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+              <ChartContainer config={statusChartConfig} className="h-[300px]">
+                <PieChart>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Pie
+                    data={statusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {statusData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={chartColors[index % chartColors.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <ChartLegend content={<ChartLegendContent />} />
+                </PieChart>
+              </ChartContainer>
             )}
           </CardContent>
         </Card>
@@ -295,31 +369,28 @@ export default function AnalyticsPage() {
                 No user data
               </p>
             ) : (
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={roleData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                      dataKey="value"
-                      label={({ name, value }) => `${name}: ${value}`}
-                      labelLine={false}
-                    >
-                      {roleData.map((_, index) => (
-                        <Cell
-                          key={index}
-                          fill={PIE_COLORS[index % PIE_COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+              <ChartContainer config={roleChartConfig} className="h-[300px]">
+                <PieChart>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Pie
+                    data={roleData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {roleData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={chartColors[index % chartColors.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <ChartLegend content={<ChartLegendContent />} />
+                </PieChart>
+              </ChartContainer>
             )}
           </CardContent>
         </Card>
@@ -334,29 +405,34 @@ export default function AnalyticsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[350px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyGrowth}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="month" fontSize={12} />
-                <YAxis fontSize={12} />
-                <Tooltip />
-                <Legend />
-                <Bar
-                  dataKey="users"
-                  name="New Users"
-                  fill="#18181b"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar
-                  dataKey="applications"
-                  name="Applications"
-                  fill="#a1a1aa"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <ChartContainer config={monthlyChartConfig} className="h-[350px]">
+            <BarChart data={monthlyGrowth}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis 
+                dataKey="month" 
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis 
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+              />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Bar
+                dataKey="users"
+                fill="var(--color-users)"
+                radius={[4, 4, 0, 0]}
+              />
+              <Bar
+                dataKey="applications"
+                fill="var(--color-applications)"
+                radius={[4, 4, 0, 0]}
+              />
+            </BarChart>
+          </ChartContainer>
         </CardContent>
       </Card>
 
@@ -422,27 +498,37 @@ export default function AnalyticsPage() {
                 No support tickets
               </p>
             ) : (
-              <div className="h-[250px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={categoryData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis type="number" fontSize={12} />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      fontSize={12}
-                      width={80}
-                    />
-                    <Tooltip />
-                    <Bar
-                      dataKey="value"
-                      name="Tickets"
-                      fill="#18181b"
-                      radius={[0, 4, 4, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <ChartContainer config={categoryChartConfig} className="h-[250px]">
+                <BarChart data={categoryData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    type="number" 
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    fontSize={12}
+                    width={80}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar
+                    dataKey="value"
+                    radius={[0, 4, 4, 0]}
+                  >
+                    {categoryData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={chartColors[index % chartColors.length]}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ChartContainer>
             )}
           </CardContent>
         </Card>

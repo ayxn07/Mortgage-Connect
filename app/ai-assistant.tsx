@@ -25,6 +25,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useAIChatStore } from '@/src/store/aiChatStore';
 import { useAuthStore } from '@/src/store/authStore';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 import { MessageRenderer, TypingIndicator } from '@/components/AIChatComponents';
 import type { AIMessage } from '@/src/types/aiChat';
 
@@ -36,6 +37,7 @@ export default function AIAssistantScreen() {
   const flatListRef = useRef<FlatList<AIMessage>>(null);
   const [inputText, setInputText] = useState('');
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const { getAccentColor, getButtonBg, getButtonText } = useThemeColors();
 
   // Track keyboard visibility
   useEffect(() => {
@@ -97,8 +99,8 @@ export default function AIAssistantScreen() {
     const text = inputText.trim();
     if (!text) return;
     setInputText('');
-    sendMessage(text, firebaseUser?.uid);
-  }, [inputText, sendMessage, firebaseUser?.uid]);
+    sendMessage(text, firebaseUser?.uid, getButtonBg(), getButtonText());
+  }, [inputText, sendMessage, firebaseUser?.uid, getButtonBg, getButtonText]);
 
   const handleSelectOption = useCallback(
     (value: string | number) => {
@@ -128,12 +130,15 @@ export default function AIAssistantScreen() {
       <MessageRenderer
         message={item}
         isDark={isDark}
+        accentColor={getAccentColor()}
+        buttonBg={getButtonBg()}
+        buttonText={getButtonText()}
         onSelectOption={handleSelectOption}
         onSubmitInput={handleSubmitInput}
         onResultAction={handleResultActionPress}
       />
     ),
-    [isDark, handleSelectOption, handleSubmitInput, handleResultActionPress]
+    [isDark, getAccentColor, getButtonBg, getButtonText, handleSelectOption, handleSubmitInput, handleResultActionPress]
   );
 
   const keyExtractor = useCallback((item: AIMessage) => item.id, []);
@@ -164,10 +169,9 @@ export default function AIAssistantScreen() {
 
             {/* AI avatar + title */}
             <View
-              className={`mr-2.5 h-9 w-9 items-center justify-center rounded-full ${
-                isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'
-              }`}>
-              <Feather name="cpu" size={16} color={isDark ? '#8b5cf6' : '#6366f1'} />
+              className="mr-2.5 h-9 w-9 items-center justify-center rounded-full"
+              style={{ backgroundColor: `${getAccentColor()}20` }}>
+              <Feather name="cpu" size={16} color={getAccentColor()} />
             </View>
             <View className="flex-1">
               <View className="flex-row items-center gap-2">
@@ -175,10 +179,9 @@ export default function AIAssistantScreen() {
                   AI Assistant
                 </Text>
                 <View
-                  className={`rounded px-1.5 py-0.5 ${
-                    isDark ? 'bg-[#6366f1]/20' : 'bg-indigo-50'
-                  }`}>
-                  <Text className="text-[9px] font-bold text-[#6366f1]">BETA</Text>
+                  className="rounded px-1.5 py-0.5"
+                  style={{ backgroundColor: `${getAccentColor()}20` }}>
+                  <Text className="text-[9px] font-bold" style={{ color: getAccentColor() }}>BETA</Text>
                 </View>
               </View>
               <Text className={`text-[11px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
@@ -213,11 +216,10 @@ export default function AIAssistantScreen() {
         {/* ── Experimental Banner ───────────────────────────────────── */}
         <Animated.View entering={FadeInDown.delay(100).duration(300)}>
           <View
-            className={`mx-4 mb-1 mt-3 flex-row items-center rounded-xl px-3 py-2 ${
-              isDark ? 'bg-[#6366f1]/10' : 'bg-indigo-50'
-            }`}>
-            <Feather name="zap" size={12} color="#6366f1" style={{ marginRight: 6 }} />
-            <Text className="flex-1 text-[11px] font-medium text-[#6366f1]">
+            className="mx-4 mb-1 mt-3 flex-row items-center rounded-xl px-3 py-2"
+            style={{ backgroundColor: `${getAccentColor()}15` }}>
+            <Feather name="zap" size={12} color={getAccentColor()} style={{ marginRight: 6 }} />
+            <Text className="flex-1 text-[11px] font-medium" style={{ color: getAccentColor() }}>
               Experimental feature — AI responses may not always be accurate. Always verify
               important information.
             </Text>
@@ -236,7 +238,7 @@ export default function AIAssistantScreen() {
           keyboardShouldPersistTaps="handled"
           ListFooterComponent={
             <>
-              {loading && <TypingIndicator isDark={isDark} />}
+              {loading && <TypingIndicator isDark={isDark} accentColor={getAccentColor()} />}
               {error && (
                 <Animated.View entering={FadeIn.duration(200)} className="mb-2 px-4">
                   <Pressable
@@ -296,11 +298,14 @@ export default function AIAssistantScreen() {
             <Pressable
               onPress={handleSend}
               disabled={!inputText.trim() || loading}
+              style={
+                inputText.trim() && !loading
+                  ? { backgroundColor: getButtonBg() }
+                  : undefined
+              }
               className={`h-11 w-11 items-center justify-center rounded-full ${
                 inputText.trim() && !loading
-                  ? isDark
-                    ? 'bg-white'
-                    : 'bg-black'
+                  ? ''
                   : isDark
                     ? 'bg-[#1a1a1a]'
                     : 'bg-gray-200'
@@ -310,9 +315,7 @@ export default function AIAssistantScreen() {
                 size={18}
                 color={
                   inputText.trim() && !loading
-                    ? isDark
-                      ? '#000'
-                      : '#fff'
+                    ? getButtonText()
                     : isDark
                       ? '#555'
                       : '#aaa'

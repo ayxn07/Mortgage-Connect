@@ -16,6 +16,7 @@ import { useAuthStore } from '@/src/store/authStore';
 import { useApplicationStore } from '@/src/store/applicationStore';
 import { loadDraftsLocally, deleteDraftLocally, type ApplicationDraft } from '@/src/utils/draftStorage';
 import type { MortgageApplication, ApplicationStatus } from '@/src/types';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 
 // ---------- Draft Card ----------
 function DraftCard({
@@ -32,6 +33,7 @@ function DraftCard({
   const lastSavedDate = new Date(draft.lastSaved);
   const timeAgo = getTimeAgo(lastSavedDate);
   const progressPercent = Math.round((draft.currentStep / 9) * 100);
+  const { getButtonBg, getButtonText } = useThemeColors();
 
   return (
     <Animated.View entering={FadeInDown.duration(400)}>
@@ -81,8 +83,8 @@ function DraftCard({
             </View>
             <View className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-100'}`}>
               <View 
-                className={`h-full ${isDark ? 'bg-white' : 'bg-black'}`}
-                style={{ width: `${progressPercent}%` }}
+                style={{ width: `${progressPercent}%`, backgroundColor: getButtonBg() }}
+                className="h-full"
               />
             </View>
           </View>
@@ -91,11 +93,10 @@ function DraftCard({
           <View className="flex-row gap-2">
             <Pressable
               onPress={onContinue}
-              className={`flex-1 flex-row items-center justify-center py-3 rounded-2xl ${
-                isDark ? 'bg-white' : 'bg-black'
-              }`}>
-              <Feather name="arrow-right" size={16} color={isDark ? '#000' : '#fff'} />
-              <Text className={`text-sm font-bold ml-2 ${isDark ? 'text-black' : 'text-white'}`}>
+              style={{ backgroundColor: getButtonBg() }}
+              className="flex-1 flex-row items-center justify-center py-3 rounded-2xl">
+              <Feather name="arrow-right" size={16} color={getButtonText()} />
+              <Text style={{ color: getButtonText() }} className="text-sm font-bold ml-2">
                 Continue
               </Text>
             </Pressable>
@@ -237,21 +238,21 @@ function TimelineStep({
 }) {
   const isCompleted = index < currentIndex;
   const isCurrent = index === currentIndex;
+  const { getButtonBg, getButtonText } = useThemeColors();
 
   return (
     <View className="flex-row">
       {/* Dot and line */}
       <View className="items-center mr-4">
         <View
+          style={isCurrent && !isRejected ? { backgroundColor: getButtonBg() } : undefined}
           className={`w-8 h-8 rounded-full items-center justify-center ${
             isCompleted
               ? 'bg-green-500'
               : isCurrent
               ? isRejected
                 ? 'bg-red-500'
-                : isDark
-                ? 'bg-white'
-                : 'bg-black'
+                : ''
               : isDark
               ? 'bg-[#1a1a1a]'
               : 'bg-gray-200'
@@ -269,13 +270,12 @@ function TimelineStep({
               isCompleted || (isCurrent && isRejected)
                 ? '#fff'
                 : isCurrent
-                ? isDark
-                  ? '#000'
-                  : '#fff'
+                ? getButtonText()
                 : isDark
                 ? '#555'
                 : '#999'
             }
+          />
           />
         </View>
         {!isLast && (
@@ -418,6 +418,8 @@ function ApplicationCard({
 
 // ---------- Empty State ----------
 function EmptyState({ isDark, onApply }: { isDark: boolean; onApply: () => void }) {
+  const { getButtonBg, getButtonText } = useThemeColors();
+  
   return (
     <Animated.View
       entering={FadeIn.duration(500)}
@@ -438,8 +440,9 @@ function EmptyState({ isDark, onApply }: { isDark: boolean; onApply: () => void 
       </Text>
       <Pressable
         onPress={onApply}
-        className={`px-8 py-4 rounded-2xl ${isDark ? 'bg-white' : 'bg-black'}`}>
-        <Text className={`text-base font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+        style={{ backgroundColor: getButtonBg() }}
+        className="px-8 py-4 rounded-2xl">
+        <Text style={{ color: getButtonText() }} className="text-base font-bold">
           Apply Now
         </Text>
       </Pressable>
@@ -452,6 +455,7 @@ export default function MyApplicationsScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const { getButtonBg, getButtonText } = useThemeColors();
 
   const { firebaseUser } = useAuthStore();
   const { applications, loading, fetchAll } = useApplicationStore();
@@ -551,10 +555,9 @@ export default function MyApplicationsScreen() {
           {/* New application button */}
           <Pressable
             onPress={() => router.push('/application' as any)}
-            className={`w-9 h-9 rounded-full items-center justify-center ${
-              isDark ? 'bg-white' : 'bg-black'
-            }`}>
-            <Feather name="plus" size={18} color={isDark ? '#000' : '#fff'} />
+            style={{ backgroundColor: getButtonBg() }}
+            className="w-9 h-9 rounded-full items-center justify-center">
+            <Feather name="plus" size={18} color={getButtonText()} />
           </Pressable>
         </View>
       </View>
@@ -578,63 +581,55 @@ export default function MyApplicationsScreen() {
               })),
           ]
             .filter((f) => f.key === 'all' || f.count > 0)
-            .map((f) => (
-              <Pressable
-                key={f.key}
-                onPress={() => setFilter(f.key)}
-                className={`flex-row items-center px-4 py-2.5 rounded-3xl mr-2.5 overflow-hidden ${
-                  filter === f.key
-                    ? isDark
-                      ? 'bg-white'
-                      : 'bg-black'
-                    : isDark
-                    ? 'bg-[#111]'
-                    : 'bg-white'
-                }`}
-                style={{
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: isDark ? 0.3 : 0.08,
-                  shadowRadius: 8,
-                  elevation: 3,
-                }}>
-                <Text
-                  className={`text-xs font-semibold ${
-                    filter === f.key
-                      ? isDark
-                        ? 'text-black'
-                        : 'text-white'
+            .map((f) => {
+              const isActive = filter === f.key;
+              return (
+                <Pressable
+                  key={f.key}
+                  onPress={() => setFilter(f.key)}
+                  style={isActive ? { backgroundColor: getButtonBg() } : undefined}
+                  className={`flex-row items-center px-4 py-2.5 rounded-3xl mr-2.5 overflow-hidden ${
+                    isActive
+                      ? ''
                       : isDark
-                      ? 'text-gray-400'
-                      : 'text-gray-600'
-                  }`}>
-                  {f.label}
-                </Text>
-                <View
-                  className={`ml-2 px-2 py-0.5 rounded-full ${
-                    filter === f.key
-                      ? isDark
-                        ? 'bg-black/10'
-                        : 'bg-white/20'
-                      : isDark
-                      ? 'bg-[#1a1a1a]'
-                      : 'bg-gray-100'
+                      ? 'bg-[#111]'
+                      : 'bg-white'
                   }`}>
                   <Text
-                    className={`text-[10px] font-bold ${
-                      filter === f.key
-                        ? isDark
-                          ? 'text-black'
-                          : 'text-white'
+                    style={isActive ? { color: getButtonText() } : undefined}
+                    className={`text-xs font-semibold ${
+                      isActive
+                        ? ''
                         : isDark
-                        ? 'text-gray-500'
-                        : 'text-gray-500'
+                        ? 'text-gray-400'
+                        : 'text-gray-600'
                     }`}>
-                    {f.count}
+                    {f.label}
                   </Text>
-                </View>
-              </Pressable>
-            ))}
+                  <View
+                    style={isActive ? { backgroundColor: `${getButtonText()}20` } : undefined}
+                    className={`ml-2 px-2 py-0.5 rounded-full ${
+                      isActive
+                        ? ''
+                        : isDark
+                        ? 'bg-[#1a1a1a]'
+                        : 'bg-gray-100'
+                    }`}>
+                    <Text
+                      style={isActive ? { color: getButtonText() } : undefined}
+                      className={`text-[10px] font-bold ${
+                        isActive
+                          ? ''
+                          : isDark
+                          ? 'text-gray-500'
+                          : 'text-gray-500'
+                      }`}>
+                      {f.count}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
         </ScrollView>
       )}
 

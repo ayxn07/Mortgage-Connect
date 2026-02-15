@@ -36,6 +36,34 @@ service firebase.storage {
       allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
     
+    // Chat images and documents (mobile app path)
+    match /chat_media/{chatId}/{fileName} {
+      // Authenticated users can upload chat files
+      allow create: if isAuthenticated() && 
+                      isValidSize() && 
+                      isValidFileType();
+      
+      // Authenticated users can read chat files
+      allow read: if isAuthenticated();
+      
+      // Users can delete their own chat files
+      allow delete: if isAuthenticated();
+    }
+    
+    // Chat images and documents (admin dashboard path)
+    match /chats/{chatId}/{fileTimestamp}/{fileName} {
+      // Authenticated users can upload chat files
+      allow create: if isAuthenticated() && 
+                      isValidSize() && 
+                      isValidFileType();
+      
+      // Authenticated users can read chat files
+      allow read: if isAuthenticated();
+      
+      // Users can delete their own chat files
+      allow delete: if isAuthenticated();
+    }
+    
     // Admin access (you can add admin check here if needed)
     match /{allPaths=**} {
       allow read: if false; // Deny by default, specific rules above

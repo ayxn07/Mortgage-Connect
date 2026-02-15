@@ -31,6 +31,7 @@ import { useColorScheme } from 'nativewind';
 import { useAuthStore } from '@/src/store/authStore';
 import { useAgentStore } from '@/src/store/agentStore';
 import { useFavoritesStore } from '@/src/store/favoritesStore';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 import type { Agent } from '@/src/types';
 
 const { width } = Dimensions.get('window');
@@ -74,6 +75,7 @@ function QuickActionCard({ item, index }: { item: (typeof quickActions)[0]; inde
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const { primaryColor, getIconColor } = useThemeColors();
 
   const scale = useSharedValue(1);
 
@@ -98,14 +100,13 @@ function QuickActionCard({ item, index }: { item: (typeof quickActions)[0]; inde
       }}>
       {/* Decorative Circle Overlay */}
       <View className={`absolute -right-8 -top-8 ${isDark ? 'opacity-[0.03]' : 'opacity-[0.08]'}`}>
-        <View className={`h-28 w-28 rounded-full ${isDark ? 'bg-white' : 'bg-black'}`} />
+        <View className="h-28 w-28 rounded-full" style={{ backgroundColor: primaryColor }} />
       </View>
 
       <View
-        className={`mb-3 h-14 w-14 items-center justify-center rounded-2xl shadow-lg ${
-          isDark ? 'bg-white' : 'bg-black'
-        }`}>
-        <Icon color={isDark ? '#000' : '#fff'} size={24} strokeWidth={2.5} />
+        className="mb-3 h-14 w-14 items-center justify-center rounded-2xl shadow-lg"
+        style={{ backgroundColor: primaryColor }}>
+        <Icon color={getIconColor()} size={24} strokeWidth={2.5} />
       </View>
       <Text className={`mb-1 text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
         {item.label}
@@ -228,6 +229,7 @@ function StatCard({
 }) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { primaryColor, getIconColor } = useThemeColors();
 
   const Icon = stat.icon;
 
@@ -240,10 +242,9 @@ function StatCard({
         isDark ? 'border-[#2a2a2a] bg-[#1a1a1a]' : 'border-gray-200 bg-white'
       }`}>
       <View
-        className={`mb-3 h-12 w-12 items-center justify-center rounded-2xl shadow-lg ${
-          isDark ? 'bg-white' : 'bg-black'
-        }`}>
-        <Icon color={isDark ? '#000' : '#fff'} size={20} strokeWidth={2.5} />
+        className="mb-3 h-12 w-12 items-center justify-center rounded-2xl shadow-lg"
+        style={{ backgroundColor: primaryColor }}>
+        <Icon color={getIconColor()} size={20} strokeWidth={2.5} />
       </View>
       <Text className={`text-xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
         {displayValue}
@@ -263,6 +264,7 @@ export default function HomeScreen() {
   const { featuredAgents, featuredLoading, agents, fetchFeaturedAgents, subscribe } =
     useAgentStore();
   const { favoriteIds } = useFavoritesStore();
+  const { primaryColor, getAccentTextColor } = useThemeColors();
   const isAdmin = userDoc?.role === 'admin';
 
   // Show first name only
@@ -464,28 +466,29 @@ export default function HomeScreen() {
 
         {/* CTA Banner */}
         <View className="mt-8 px-6">
-          <View className={`rounded-3xl p-6 ${isDark ? 'bg-white' : 'bg-black'}`}>
+          <View className="rounded-3xl p-6" style={{ backgroundColor: primaryColor }}>
             <View className="flex-row items-start justify-between">
               <View className="flex-1 pr-4">
-                <Text className={`text-xl font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+                <Text className="text-xl font-bold" style={{ color: getAccentTextColor() }}>
                   Ready to Apply?
                 </Text>
                 <Text
-                  className={`mt-2 text-sm leading-5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                  className="mt-2 text-sm leading-5"
+                  style={{ color: getAccentTextColor(), opacity: 0.8 }}>
                   Calculate your EMI, check eligibility, and submit your mortgage application
                 </Text>
               </View>
               <View
-                className={`h-12 w-12 items-center justify-center rounded-2xl ${
-                  isDark ? 'bg-black' : 'bg-white'
-                }`}>
-                <CreditCard color={isDark ? '#fff' : '#000'} size={24} />
+                className="h-12 w-12 items-center justify-center rounded-2xl"
+                style={{ backgroundColor: getAccentTextColor() }}>
+                <CreditCard color={primaryColor} size={24} />
               </View>
             </View>
             <Pressable
               onPress={() => router.push('/calculator' as any)}
-              className={`mt-5 items-center rounded-xl py-3.5 ${isDark ? 'bg-black' : 'bg-white'}`}>
-              <Text className={`font-semibold ${isDark ? 'text-white' : 'text-black'}`}>
+              className="mt-5 items-center rounded-xl py-3.5"
+              style={{ backgroundColor: getAccentTextColor() }}>
+              <Text className="font-semibold" style={{ color: primaryColor }}>
                 Open Calculator
               </Text>
             </Pressable>

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import '@/global.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { ThemeColorProvider } from '@/src/contexts/ThemeColorContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DynamicStatusBar } from '@/components/DynamicStatusBar';
 import { ThemeTransitionProvider } from '@/components/ThemeTransition';
@@ -50,15 +51,16 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <SafeAreaProvider>
-        <ThemeTransitionProvider>
-            <DynamicStatusBar />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: '#000' },
-              animation: 'fade',
-            }}>
+      <ThemeColorProvider>
+        <SafeAreaProvider>
+          <ThemeTransitionProvider>
+              <DynamicStatusBar />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: '#000' },
+                animation: 'fade',
+              }}>
             <Stack.Screen
               name="index"
               options={{
@@ -196,9 +198,17 @@ export default function RootLayout() {
                 animation: 'slide_from_right',
               }}
             />
+            <Stack.Screen
+              name="theme-selector"
+              options={{
+                presentation: 'card',
+                animation: 'slide_from_right',
+              }}
+            />
           </Stack>
         </ThemeTransitionProvider>
       </SafeAreaProvider>
+      </ThemeColorProvider>
     </ThemeProvider>
   );
 }

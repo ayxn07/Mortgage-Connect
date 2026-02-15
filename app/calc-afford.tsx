@@ -18,6 +18,7 @@ import {
   reverseEMIToLoan,
   getMinDownPaymentPercent,
 } from '@/src/utils/helpers';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 
 // =====================================================================
 // Helpers
@@ -121,11 +122,15 @@ function Toggle({
   selected,
   onSelect,
   isDark,
+  accentColor,
+  accentTextColor,
 }: {
   options: { label: string; value: string }[];
   selected: string;
   onSelect: (v: string) => void;
   isDark: boolean;
+  accentColor: string;
+  accentTextColor: string;
 }) {
   return (
     <View className={`flex-row rounded-2xl p-1 ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-200'}`}>
@@ -135,15 +140,13 @@ function Toggle({
           <Pressable
             key={opt.value}
             onPress={() => onSelect(opt.value)}
-            className={`flex-1 py-2.5 rounded-xl items-center ${
-              active ? (isDark ? 'bg-white' : 'bg-black') : ''
-            }`}>
+            style={active ? { backgroundColor: accentColor } : undefined}
+            className={`flex-1 py-2.5 rounded-xl items-center ${active ? '' : ''}`}>
             <Text
+              style={active ? { color: accentTextColor } : undefined}
               className={`text-sm font-semibold ${
                 active
-                  ? isDark
-                    ? 'text-black'
-                    : 'text-white'
+                  ? ''
                   : isDark
                     ? 'text-gray-500'
                     : 'text-gray-500'
@@ -203,6 +206,8 @@ function Metric({
   big,
   isDark,
   color,
+  accentColor,
+  accentTextColor,
 }: {
   label: string;
   value: string;
@@ -210,24 +215,32 @@ function Metric({
   big?: boolean;
   isDark: boolean;
   color?: string;
+  accentColor?: string;
+  accentTextColor?: string;
 }) {
   return (
     <View
+      style={big && accentColor ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
       className={`rounded-2xl p-4 border ${
         big
-          ? isDark
-            ? 'bg-white border-white'
-            : 'bg-black border-black'
+          ? accentColor
+            ? ''
+            : isDark
+              ? 'bg-white border-white'
+              : 'bg-black border-black'
           : isDark
             ? 'bg-[#1a1a1a] border-[#2a2a2a]'
             : 'bg-white border-gray-200'
       }`}>
       <Text
+        style={big && accentTextColor ? { color: accentTextColor, opacity: 0.5 } : undefined}
         className={`text-xs font-medium mb-1.5 ${
           big
-            ? isDark
-              ? 'text-black/50'
-              : 'text-white/50'
+            ? accentTextColor
+              ? ''
+              : isDark
+                ? 'text-black/50'
+                : 'text-white/50'
             : isDark
               ? 'text-gray-500'
               : 'text-gray-400'
@@ -240,9 +253,7 @@ function Metric({
           color: color
             ? color
             : big
-              ? isDark
-                ? '#000'
-                : '#fff'
+              ? accentTextColor || (isDark ? '#000' : '#fff')
               : isDark
                 ? '#fff'
                 : '#000',
@@ -251,11 +262,14 @@ function Metric({
       </Text>
       {sub && (
         <Text
+          style={big && accentTextColor ? { color: accentTextColor, opacity: 0.4 } : undefined}
           className={`text-[10px] mt-1 ${
             big
-              ? isDark
-                ? 'text-black/40'
-                : 'text-white/40'
+              ? accentTextColor
+                ? ''
+                : isDark
+                  ? 'text-black/40'
+                  : 'text-white/40'
               : isDark
                 ? 'text-gray-600'
                 : 'text-gray-400'
@@ -274,6 +288,10 @@ export default function CalcAffordScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const { getButtonBg, getButtonText, getAccentColor } = useThemeColors();
+
+  const accentColor = getAccentColor();
+  const accentTextColor = getButtonText();
 
   const [salary, setSalary] = useState(25_000);
   const [existingEMIs, setExistingEMIs] = useState(3_000);
@@ -403,8 +421,8 @@ export default function CalcAffordScreen() {
           </View>
           <View
             className="w-10 h-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: '#10b98120' }}>
-            <Feather name="trending-up" size={18} color="#10b981" />
+            style={{ backgroundColor: `${accentColor}20` }}>
+            <Feather name="trending-up" size={18} color={accentColor} />
           </View>
         </View>
       </Animated.View>
@@ -460,6 +478,8 @@ export default function CalcAffordScreen() {
                 selected={buyerType}
                 onSelect={(v) => setBuyerType(v as 'resident' | 'non-resident')}
                 isDark={isDark}
+                accentColor={accentColor}
+                accentTextColor={accentTextColor}
               />
               <View className="mt-4">
                 <Text
@@ -474,6 +494,8 @@ export default function CalcAffordScreen() {
                   selected={firstTime ? 'yes' : 'no'}
                   onSelect={(v) => setFirstTime(v === 'yes')}
                   isDark={isDark}
+                  accentColor={accentColor}
+                  accentTextColor={accentTextColor}
                 />
               </View>
             </Section>
@@ -549,6 +571,8 @@ export default function CalcAffordScreen() {
                   }
                   big
                   isDark={isDark}
+                  accentColor={accentColor}
+                  accentTextColor={accentTextColor}
                 />
 
                 <View className="flex-row gap-3 mt-3">
@@ -739,12 +763,12 @@ export default function CalcAffordScreen() {
                 <Animated.View entering={FadeInUp.delay(500).duration(400)} className="mt-5">
                   <Pressable
                     onPress={() => router.push('/calc-emi' as any)}
-                    className={`rounded-2xl py-4 items-center flex-row justify-center ${
-                      isDark ? 'bg-white' : 'bg-black'
-                    }`}>
-                    <Feather name="credit-card" size={16} color={isDark ? '#000' : '#fff'} />
+                    style={{ backgroundColor: getButtonBg() }}
+                    className="rounded-2xl py-4 items-center flex-row justify-center">
+                    <Feather name="credit-card" size={16} color={getButtonText()} />
                     <Text
-                      className={`ml-2 text-base font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+                      style={{ color: getButtonText() }}
+                      className="ml-2 text-base font-bold">
                       Calculate EMI
                     </Text>
                   </Pressable>

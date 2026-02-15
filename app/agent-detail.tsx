@@ -47,6 +47,7 @@ import { useAuthStore } from '@/src/store/authStore';
 import { useChatStore } from '@/src/store/chatStore';
 import { fetchAgentReviews, createReview } from '@/src/services/reviews';
 import type { Agent, Review } from '@/src/types';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 
 const { width } = Dimensions.get('window');
 const HEADER_HEIGHT = 300;
@@ -149,6 +150,7 @@ export default function AgentDetailScreen() {
   const params = useLocalSearchParams<{ agentId: string }>();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { getButtonBg, getButtonText, getIconBg, getIconColor } = useThemeColors();
 
   const scrollY = useSharedValue(0);
 
@@ -716,14 +718,13 @@ export default function AgentDetailScreen() {
                 <TouchableOpacity
                   onPress={handleSubmitReview}
                   disabled={submittingReview}
-                  className={`mt-4 rounded-2xl py-3.5 items-center ${
-                    isDark ? 'bg-white' : 'bg-gray-900'
-                  } ${submittingReview ? 'opacity-60' : ''}`}
+                  style={{ backgroundColor: getButtonBg(), opacity: submittingReview ? 0.6 : 1 }}
+                  className="mt-4 rounded-2xl py-3.5 items-center"
                   activeOpacity={0.8}>
                   {submittingReview ? (
-                    <ActivityIndicator color={isDark ? '#000' : '#fff'} size="small" />
+                    <ActivityIndicator color={getButtonText()} size="small" />
                   ) : (
-                    <Text className={`font-bold text-sm ${isDark ? 'text-black' : 'text-white'}`}>
+                    <Text style={{ color: getButtonText() }} className="font-bold text-sm">
                       Submit Review
                     </Text>
                   )}
@@ -777,16 +778,15 @@ export default function AgentDetailScreen() {
           <TouchableOpacity
             onPress={handleMessageAgent}
             disabled={startingChat}
-            className={`flex-1 items-center justify-center rounded-2xl py-4 ${
-              isDark ? 'bg-white' : 'bg-gray-900'
-            } ${startingChat ? 'opacity-60' : ''}`}
+            style={{ backgroundColor: getButtonBg(), opacity: startingChat ? 0.6 : 1 }}
+            className="flex-1 items-center justify-center rounded-2xl py-4"
             activeOpacity={0.7}>
             {startingChat ? (
-              <ActivityIndicator color={isDark ? '#000' : '#fff'} size="small" />
+              <ActivityIndicator color={getButtonText()} size="small" />
             ) : (
               <View className="flex-row items-center">
-                <Send color={isDark ? '#000' : '#fff'} size={18} />
-                <Text className={`ml-2 font-bold text-sm ${isDark ? 'text-black' : 'text-white'}`}>
+                <Send color={getButtonText()} size={18} />
+                <Text style={{ color: getButtonText() }} className="ml-2 font-bold text-sm">
                   Message
                 </Text>
               </View>

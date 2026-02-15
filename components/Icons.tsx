@@ -176,6 +176,10 @@ export const Edit3 = ({ size = 24, color, className }: IconProps) => (
   <Feather name="edit-3" size={size} color={color || getColor(className)} />
 );
 
+export const Palette = ({ size = 24, color, className }: IconProps) => (
+  <Feather name="droplet" size={size} color={color || getColor(className)} />
+);
+
 export const ChevronLeft = ({ size = 24, color, className }: IconProps) => (
   <Feather name="chevron-left" size={size} color={color || getColor(className)} />
 );

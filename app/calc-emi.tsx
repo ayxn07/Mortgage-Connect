@@ -26,6 +26,7 @@ import {
 } from '@/src/utils/helpers';
 import type { EMICalculationResult } from '@/src/types';
 import type { DBRResult, AmortizationYearlySummary } from '@/src/utils/helpers';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 
 
 // =====================================================================
@@ -50,11 +51,15 @@ function Chips({
   selected,
   onSelect,
   isDark,
+  accentColor,
+  accentTextColor,
 }: {
   items: { label: string; value: number | string }[];
   selected: number | string;
   onSelect: (v: number | string) => void;
   isDark: boolean;
+  accentColor: string;
+  accentTextColor: string;
 }) {
   return (
     <View className="flex-row flex-wrap gap-2">
@@ -64,21 +69,19 @@ function Chips({
           <Pressable
             key={String(item.value)}
             onPress={() => onSelect(item.value)}
+            style={active ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
             className={`px-4 py-2.5 rounded-xl border ${
               active
-                ? isDark
-                  ? 'bg-white border-white'
-                  : 'bg-black border-black'
+                ? ''
                 : isDark
                   ? 'bg-[#1a1a1a] border-[#2a2a2a]'
                   : 'bg-white border-gray-200'
             }`}>
             <Text
+              style={active ? { color: accentTextColor } : undefined}
               className={`text-sm font-semibold ${
                 active
-                  ? isDark
-                    ? 'text-black'
-                    : 'text-white'
+                  ? ''
                   : isDark
                     ? 'text-gray-400'
                     : 'text-gray-600'
@@ -100,11 +103,15 @@ function Toggle({
   selected,
   onSelect,
   isDark,
+  accentColor,
+  accentTextColor,
 }: {
   options: { label: string; value: string }[];
   selected: string;
   onSelect: (v: string) => void;
   isDark: boolean;
+  accentColor: string;
+  accentTextColor: string;
 }) {
   return (
     <View className={`flex-row rounded-2xl p-1 ${isDark ? 'bg-[#1a1a1a]' : 'bg-gray-200'}`}>
@@ -114,15 +121,13 @@ function Toggle({
           <Pressable
             key={opt.value}
             onPress={() => onSelect(opt.value)}
-            className={`flex-1 py-2.5 rounded-xl items-center ${
-              active ? (isDark ? 'bg-white' : 'bg-black') : ''
-            }`}>
+            style={active ? { backgroundColor: accentColor } : undefined}
+            className={`flex-1 py-2.5 rounded-xl items-center ${active ? '' : ''}`}>
             <Text
+              style={active ? { color: accentTextColor } : undefined}
               className={`text-sm font-semibold ${
                 active
-                  ? isDark
-                    ? 'text-black'
-                    : 'text-white'
+                  ? ''
                   : isDark
                     ? 'text-gray-500'
                     : 'text-gray-500'
@@ -243,6 +248,7 @@ function Slider({
   onValueChange,
   format,
   isDark,
+  accentColor,
 }: {
   label: string;
   value: number;
@@ -252,6 +258,7 @@ function Slider({
   onValueChange: (v: number) => void;
   format: (v: number) => string;
   isDark: boolean;
+  accentColor: string;
 }) {
   const range = max - min;
   const pct = range > 0 ? Math.min(100, Math.max(0, ((value - min) / range) * 100)) : 0;
@@ -271,8 +278,8 @@ function Slider({
       <View
         className={`h-2.5 rounded-full overflow-hidden ${isDark ? 'bg-[#2a2a2a]' : 'bg-gray-200'}`}>
         <Animated.View
-          className={`h-full rounded-full ${isDark ? 'bg-white' : 'bg-black'}`}
-          style={{ width: `${pct}%` } as any}
+          className="h-full rounded-full"
+          style={{ width: `${pct}%`, backgroundColor: accentColor } as any}
         />
       </View>
 
@@ -363,30 +370,40 @@ function Metric({
   sub,
   big,
   isDark,
+  accentColor,
+  accentTextColor,
 }: {
   label: string;
   value: string;
   sub?: string;
   big?: boolean;
   isDark: boolean;
+  accentColor?: string;
+  accentTextColor?: string;
 }) {
   return (
     <View
+      style={big && accentColor ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
       className={`rounded-2xl p-4 border ${
         big
-          ? isDark
-            ? 'bg-white border-white'
-            : 'bg-black border-black'
+          ? accentColor
+            ? ''
+            : isDark
+              ? 'bg-white border-white'
+              : 'bg-black border-black'
           : isDark
             ? 'bg-[#1a1a1a] border-[#2a2a2a]'
             : 'bg-white border-gray-200'
       }`}>
       <Text
+        style={big && accentTextColor ? { color: accentTextColor, opacity: 0.5 } : undefined}
         className={`text-xs font-medium mb-1.5 ${
           big
-            ? isDark
-              ? 'text-black/50'
-              : 'text-white/50'
+            ? accentTextColor
+              ? ''
+              : isDark
+                ? 'text-black/50'
+                : 'text-white/50'
             : isDark
               ? 'text-gray-500'
               : 'text-gray-400'
@@ -394,11 +411,14 @@ function Metric({
         {label}
       </Text>
       <Text
+        style={big && accentTextColor ? { color: accentTextColor } : undefined}
         className={`${big ? 'text-2xl' : 'text-lg'} font-bold ${
           big
-            ? isDark
-              ? 'text-black'
-              : 'text-white'
+            ? accentTextColor
+              ? ''
+              : isDark
+                ? 'text-black'
+                : 'text-white'
             : isDark
               ? 'text-white'
               : 'text-black'
@@ -407,11 +427,14 @@ function Metric({
       </Text>
       {sub && (
         <Text
+          style={big && accentTextColor ? { color: accentTextColor, opacity: 0.4 } : undefined}
           className={`text-[10px] mt-1 ${
             big
-              ? isDark
-                ? 'text-black/40'
-                : 'text-white/40'
+              ? accentTextColor
+                ? ''
+                : isDark
+                  ? 'text-black/40'
+                  : 'text-white/40'
               : isDark
                 ? 'text-gray-600'
                 : 'text-gray-400'
@@ -430,6 +453,10 @@ export default function CalcEMIScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const { getButtonBg, getButtonText, getAccentColor } = useThemeColors();
+
+  const accentColor = getAccentColor();
+  const accentTextColor = getButtonText();
 
   // --- State ---
   const [propertyPrice, setPropertyPrice] = useState(1_500_000);
@@ -537,8 +564,8 @@ export default function CalcEMIScreen() {
           </View>
           <View
             className="w-10 h-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: '#6366f120' }}>
-            <Feather name="credit-card" size={18} color="#6366f1" />
+            style={{ backgroundColor: `${accentColor}20` }}>
+            <Feather name="credit-card" size={18} color={accentColor} />
           </View>
         </View>
       </Animated.View>
@@ -574,6 +601,8 @@ export default function CalcEMIScreen() {
                 selected={propertyPrice}
                 onSelect={(v) => setPropertyPrice(v as number)}
                 isDark={isDark}
+                accentColor={accentColor}
+                accentTextColor={accentTextColor}
               />
 
               <View className="mt-5">
@@ -589,6 +618,8 @@ export default function CalcEMIScreen() {
                   selected={buyerType}
                   onSelect={(v) => setBuyerType(v as 'resident' | 'non-resident')}
                   isDark={isDark}
+                  accentColor={accentColor}
+                  accentTextColor={accentTextColor}
                 />
               </View>
 
@@ -605,6 +636,8 @@ export default function CalcEMIScreen() {
                   selected={firstTime ? 'yes' : 'no'}
                   onSelect={(v) => setFirstTime(v === 'yes')}
                   isDark={isDark}
+                  accentColor={accentColor}
+                  accentTextColor={accentTextColor}
                 />
               </View>
             </Section>
@@ -620,6 +653,7 @@ export default function CalcEMIScreen() {
                 onValueChange={setDpPercent}
                 format={(v) => `${v}%`}
                 isDark={isDark}
+                accentColor={accentColor}
               />
 
               {/* Computed values */}
@@ -703,6 +737,8 @@ export default function CalcEMIScreen() {
                 selected={interestRate}
                 onSelect={(v) => setInterestRate(v as number)}
                 isDark={isDark}
+                accentColor={accentColor}
+                accentTextColor={accentTextColor}
               />
 
               <View className="mt-5">
@@ -715,6 +751,7 @@ export default function CalcEMIScreen() {
                   onValueChange={setTenure}
                   format={(v) => `${v} yrs`}
                   isDark={isDark}
+                  accentColor={accentColor}
                 />
               </View>
 
@@ -730,6 +767,8 @@ export default function CalcEMIScreen() {
                 selected={rateType}
                 onSelect={(v) => setRateType(v as 'fixed' | 'variable')}
                 isDark={isDark}
+                accentColor={accentColor}
+                accentTextColor={accentTextColor}
               />
               {rateType === 'fixed' && (
                 <Animated.View entering={FadeInDown.duration(250)} className="mt-3">
@@ -747,6 +786,8 @@ export default function CalcEMIScreen() {
                     selected={fixedPeriod}
                     onSelect={(v) => setFixedPeriod(v as number)}
                     isDark={isDark}
+                    accentColor={accentColor}
+                    accentTextColor={accentTextColor}
                   />
                 </Animated.View>
               )}
@@ -913,6 +954,8 @@ export default function CalcEMIScreen() {
                   sub={`${effectiveTenure} years · ${effectiveTenure * 12} months`}
                   big
                   isDark={isDark}
+                  accentColor={accentColor}
+                  accentTextColor={accentTextColor}
                 />
 
                 {/* Grid */}
@@ -1130,12 +1173,12 @@ export default function CalcEMIScreen() {
                 <Animated.View entering={FadeInUp.delay(600).duration(400)} className="mt-5">
                   <Pressable
                     onPress={() => router.push('/application' as any)}
-                    className={`rounded-2xl py-4 items-center flex-row justify-center ${
-                      isDark ? 'bg-white' : 'bg-black'
-                    }`}>
-                    <Feather name="check-circle" size={16} color={isDark ? '#000' : '#fff'} />
+                    style={{ backgroundColor: getButtonBg() }}
+                    className="rounded-2xl py-4 items-center flex-row justify-center">
+                    <Feather name="check-circle" size={16} color={getButtonText()} />
                     <Text
-                      className={`ml-2 text-base font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+                      style={{ color: getButtonText() }}
+                      className="ml-2 text-base font-bold">
                       Start Pre-Approval
                     </Text>
                   </Pressable>

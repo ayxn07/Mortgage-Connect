@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/src/store/authStore';
 import { useSupportStore } from '@/src/store/supportStore';
 import type { FAQ } from '@/src/types';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 
 function FAQItem({ faq, isDark }: { faq: FAQ; isDark: boolean }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -71,6 +72,7 @@ export default function SupportScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const { getButtonBg, getButtonText, getIconBg, getIconColor } = useThemeColors();
 
   // Auth store — pre-fill name & email
   const { userDoc, firebaseUser } = useAuthStore();
@@ -213,10 +215,10 @@ export default function SupportScreen() {
               className={`flex-1 items-center rounded-2xl border p-4 ${
                 isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
               }`}>
-              <View className={`mb-2 h-12 w-12 items-center justify-center rounded-full ${
-                isDark ? 'bg-white' : 'bg-black'
-              }`}>
-                <Phone color={isDark ? '#000' : '#fff'} size={20} />
+              <View
+                style={{ backgroundColor: getIconBg() }}
+                className="mb-2 h-12 w-12 items-center justify-center rounded-full">
+                <Phone color={getIconColor()} size={20} />
               </View>
               <Text className={`font-semibold ${isDark ? 'text-white' : 'text-black'}`}>
                 Call
@@ -232,10 +234,10 @@ export default function SupportScreen() {
               className={`flex-1 items-center rounded-2xl border p-4 ${
                 isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
               }`}>
-              <View className={`mb-2 h-12 w-12 items-center justify-center rounded-full ${
-                isDark ? 'bg-white' : 'bg-black'
-              }`}>
-                <Mail color={isDark ? '#000' : '#fff'} size={20} />
+              <View
+                style={{ backgroundColor: getIconBg() }}
+                className="mb-2 h-12 w-12 items-center justify-center rounded-full">
+                <Mail color={getIconColor()} size={20} />
               </View>
               <Text className={`font-semibold ${isDark ? 'text-white' : 'text-black'}`}>
                 Email
@@ -251,10 +253,10 @@ export default function SupportScreen() {
               className={`flex-1 items-center rounded-2xl border p-4 ${
                 isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
               }`}>
-              <View className={`mb-2 h-12 w-12 items-center justify-center rounded-full ${
-                isDark ? 'bg-white' : 'bg-black'
-              }`}>
-                <MessageCircle color={isDark ? '#000' : '#fff'} size={20} />
+              <View
+                style={{ backgroundColor: getIconBg() }}
+                className="mb-2 h-12 w-12 items-center justify-center rounded-full">
+                <MessageCircle color={getIconColor()} size={20} />
               </View>
               <Text className={`font-semibold ${isDark ? 'text-white' : 'text-black'}`}>
                 Chat
@@ -291,8 +293,9 @@ export default function SupportScreen() {
                   clearLastSubmitted();
                 }}
                 activeOpacity={0.8}
-                className={`mt-2 rounded-xl px-6 py-3 ${isDark ? 'bg-white' : 'bg-black'}`}>
-                <Text className={`font-semibold ${isDark ? 'text-black' : 'text-white'}`}>
+                style={{ backgroundColor: getButtonBg() }}
+                className="mt-2 rounded-xl px-6 py-3">
+                <Text style={{ color: getButtonText() }} className="font-semibold">
                   Send Another
                 </Text>
               </TouchableOpacity>
@@ -361,15 +364,14 @@ export default function SupportScreen() {
               onPress={handleSubmit}
               disabled={submitting}
               activeOpacity={0.8}
-              className={`flex-row items-center justify-center gap-2 rounded-xl p-4 ${
-                submitting ? 'opacity-60' : ''
-              } ${isDark ? 'bg-white' : 'bg-black'}`}>
+              style={{ backgroundColor: getButtonBg(), opacity: submitting ? 0.6 : 1 }}
+              className="flex-row items-center justify-center gap-2 rounded-xl p-4">
               {submitting ? (
-                <ActivityIndicator color={isDark ? '#000' : '#fff'} size="small" />
+                <ActivityIndicator color={getButtonText()} size="small" />
               ) : (
-                <Send color={isDark ? '#000' : '#fff'} size={20} />
+                <Send color={getButtonText()} size={20} />
               )}
-              <Text className={`text-base font-semibold ${isDark ? 'text-black' : 'text-white'}`}>
+              <Text style={{ color: getButtonText() }} className="text-base font-semibold">
                 {submitting ? 'Submitting...' : 'Submit Feedback'}
               </Text>
             </TouchableOpacity>

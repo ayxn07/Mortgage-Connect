@@ -68,6 +68,7 @@ import {
 import { MortgageApplication, ApplicationStatus, Agent, User } from "@/lib/types";
 import { formatDistanceToNow, format } from "date-fns";
 import { toast } from "sonner";
+import { useTheme } from "@/lib/theme-context";
 
 const STATUS_OPTIONS: {
   value: ApplicationStatus;
@@ -136,6 +137,7 @@ export default function ApplicationsPage() {
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [applicantUser, setApplicantUser] = useState<User | null>(null);
+  const { themeColor } = useTheme();
 
   useEffect(() => {
     const unsub = subscribeToApplications((apps) => {
@@ -254,18 +256,18 @@ export default function ApplicationsPage() {
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total</p>
                 <p className="text-2xl font-bold">{statusCounts.all}</p>
               </div>
-              <FileText className="h-5 w-5 text-muted-foreground" />
+              <FileText className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-muted-foreground' : 'text-primary'}`} />
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Pending</p>
@@ -274,12 +276,12 @@ export default function ApplicationsPage() {
                     (statusCounts.pre_approval || 0)}
                 </p>
               </div>
-              <Clock className="h-5 w-5 text-amber-500" />
+              <Clock className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-amber-500' : 'text-primary'}`} />
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Approved</p>
@@ -289,12 +291,12 @@ export default function ApplicationsPage() {
                     (statusCounts.completed || 0)}
                 </p>
               </div>
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              <CheckCircle2 className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-green-500' : 'text-primary'}`} />
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Rejected</p>
@@ -302,7 +304,7 @@ export default function ApplicationsPage() {
                   {statusCounts.rejected || 0}
                 </p>
               </div>
-              <XCircle className="h-5 w-5 text-red-500" />
+              <XCircle className={`h-5 w-5 ${themeColor === 'adaptive' ? 'text-red-500' : 'text-primary'}`} />
             </div>
           </CardContent>
         </Card>
@@ -310,7 +312,7 @@ export default function ApplicationsPage() {
 
       {/* Filters */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-3">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

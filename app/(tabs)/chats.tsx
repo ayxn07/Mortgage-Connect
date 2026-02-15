@@ -16,6 +16,7 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useChatList } from '@/src/hooks/useChat';
 import { useChatStore } from '@/src/store/chatStore';
 import { useAuthStore } from '@/src/store/authStore';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 import { getAdminUser } from '@/src/services/auth';
 import { Search, MessageCircle } from '@/components/Icons';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -33,12 +34,16 @@ function ChatListCard({
   isDark,
   onPress,
   index,
+  primaryColor,
+  accentTextColor,
 }: {
   item: ChatListItem;
   userId: string;
   isDark: boolean;
   onPress: () => void;
   index: number;
+  primaryColor: string;
+  accentTextColor: string;
 }) {
   const other = item.otherParticipant;
   const unread = item.unreadCount?.[userId] || 0;
@@ -87,13 +92,17 @@ function ChatListCard({
             </View>
             {/* Role badge */}
             {other.role === 'agent' && (
-              <View className="absolute -bottom-0.5 -right-0.5 bg-blue-500 rounded-full w-5 h-5 items-center justify-center border-2 border-black">
-                <Feather name="briefcase" size={10} color="#fff" />
+              <View
+                className="absolute -bottom-0.5 -right-0.5 rounded-full w-5 h-5 items-center justify-center border-2"
+                style={{ backgroundColor: primaryColor, borderColor: isDark ? '#111' : '#fff' }}>
+                <Feather name="briefcase" size={10} color={accentTextColor} />
               </View>
             )}
             {other.role === 'admin' && (
-              <View className="absolute -bottom-0.5 -right-0.5 bg-amber-500 rounded-full w-5 h-5 items-center justify-center border-2 border-black">
-                <Feather name="shield" size={10} color="#fff" />
+              <View
+                className="absolute -bottom-0.5 -right-0.5 rounded-full w-5 h-5 items-center justify-center border-2"
+                style={{ backgroundColor: primaryColor, borderColor: isDark ? '#111' : '#fff' }}>
+                <Feather name="shield" size={10} color={accentTextColor} />
               </View>
             )}
           </View>
@@ -135,11 +144,11 @@ function ChatListCard({
               </Text>
               {unread > 0 && (
                 <View
-                  className={`min-w-[22px] h-[22px] rounded-full items-center justify-center px-1.5 ${isDark ? 'bg-white' : 'bg-black'
-                    }`}>
+                  className="min-w-[22px] h-[22px] rounded-full items-center justify-center px-1.5"
+                  style={{ backgroundColor: primaryColor }}>
                   <Text
-                    className={`text-[11px] font-bold ${isDark ? 'text-black' : 'text-white'
-                      }`}>
+                    className="text-[11px] font-bold"
+                    style={{ color: accentTextColor }}>
                     {unread > 99 ? '99+' : unread}
                   </Text>
                 </View>
@@ -158,6 +167,7 @@ export default function ChatsScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const { primaryColor, getAccentTextColor } = useThemeColors();
 
   const { chats, loading, totalUnread, userId, userDoc, resubscribe } = useChatList();
   const { createOrOpenChat } = useChatStore();
@@ -270,12 +280,12 @@ export default function ChatsScreen() {
       </Text>
       <TouchableOpacity
         onPress={() => router.push('/(tabs)/agents')}
-        className={`mt-6 rounded-2xl px-8 py-3.5 ${isDark ? 'bg-white' : 'bg-black'
-          }`}
+        className="mt-6 rounded-2xl px-8 py-3.5"
+        style={{ backgroundColor: primaryColor }}
         activeOpacity={0.8}>
         <Text
-          className={`font-bold text-sm ${isDark ? 'text-black' : 'text-white'
-            }`}>
+          className="font-bold text-sm"
+          style={{ color: getAccentTextColor() }}>
           Browse Agents
         </Text>
       </TouchableOpacity>
@@ -420,6 +430,8 @@ export default function ChatsScreen() {
             isDark={isDark}
             onPress={() => openChat(item.chatId)}
             index={index}
+            primaryColor={primaryColor}
+            accentTextColor={getAccentTextColor()}
           />
         )}
         ListEmptyComponent={

@@ -19,6 +19,7 @@ import Animated, {
 import { Feather } from '@expo/vector-icons';
 import { calculateRentVsBuy } from '@/src/utils/helpers';
 import type { Emirate, RentVsBuyResult } from '@/src/utils/helpers';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 
 const ACCENT = '#0ea5e9'; // sky blue
 
@@ -118,11 +119,15 @@ function Chips<T extends string | number>({
   selected,
   onSelect,
   isDark,
+  accentColor,
+  accentTextColor,
 }: {
   items: { label: string; value: T }[];
   selected: T;
   onSelect: (v: T) => void;
   isDark: boolean;
+  accentColor: string;
+  accentTextColor: string;
 }) {
   return (
     <View className="flex-row flex-wrap gap-2">
@@ -132,15 +137,17 @@ function Chips<T extends string | number>({
           <Pressable
             key={String(item.value)}
             onPress={() => onSelect(item.value)}
+            style={active ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
             className={`px-4 py-2.5 rounded-xl border ${
               active
-                ? isDark ? 'bg-white border-white' : 'bg-black border-black'
+                ? ''
                 : isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
             }`}>
             <Text
+              style={active ? { color: accentTextColor } : undefined}
               className={`text-sm font-semibold ${
                 active
-                  ? isDark ? 'text-black' : 'text-white'
+                  ? ''
                   : isDark ? 'text-gray-400' : 'text-gray-600'
               }`}>
               {item.label}
@@ -194,12 +201,16 @@ function Toggle({
   onToggle,
   isDark,
   hint,
+  accentColor,
+  accentTextColor,
 }: {
   label: string;
   value: boolean;
   onToggle: () => void;
   isDark: boolean;
   hint?: string;
+  accentColor: string;
+  accentTextColor: string;
 }) {
   return (
     <View className="mb-3">
@@ -212,15 +223,17 @@ function Toggle({
         </View>
         <Pressable
           onPress={onToggle}
+          style={value ? { backgroundColor: accentColor } : undefined}
           className={`w-12 h-7 rounded-full justify-center px-1 ${
             value
-              ? isDark ? 'bg-white' : 'bg-black'
+              ? ''
               : isDark ? 'bg-[#2a2a2a]' : 'bg-gray-300'
           }`}>
           <View
+            style={value ? { backgroundColor: accentTextColor } : undefined}
             className={`w-5 h-5 rounded-full ${
               value
-                ? isDark ? 'bg-black self-end' : 'bg-white self-end'
+                ? 'self-end'
                 : isDark ? 'bg-gray-600 self-start' : 'bg-white self-start'
             }`}
           />
@@ -237,6 +250,7 @@ export default function CalcRentVsBuyScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const { getButtonBg, getButtonText, getAccentColor } = useThemeColors();
 
   // --- Inputs ---
   const [propertyPrice, setPropertyPrice] = useState(1_500_000);
@@ -305,8 +319,8 @@ export default function CalcRentVsBuyScreen() {
           </View>
           <View
             className="w-10 h-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: `${ACCENT}20` }}>
-            <Feather name="home" size={18} color={ACCENT} />
+            style={{ backgroundColor: `${getAccentColor()}20` }}>
+            <Feather name="home" size={18} color={getAccentColor()} />
           </View>
         </View>
       </Animated.View>
@@ -340,6 +354,8 @@ export default function CalcRentVsBuyScreen() {
                 selected={propertyPrice}
                 onSelect={setPropertyPrice}
                 isDark={isDark}
+                accentColor={getAccentColor()}
+                accentTextColor={getButtonText()}
               />
 
               <View className="mt-4 flex-row gap-3">
@@ -407,6 +423,8 @@ export default function CalcRentVsBuyScreen() {
                   selected={emirate}
                   onSelect={(v) => setEmirate(v as Emirate)}
                   isDark={isDark}
+                  accentColor={getAccentColor()}
+                  accentTextColor={getButtonText()}
                 />
               </View>
 
@@ -415,6 +433,8 @@ export default function CalcRentVsBuyScreen() {
                 value={isResident}
                 onToggle={() => setIsResident(!isResident)}
                 isDark={isDark}
+                accentColor={getAccentColor()}
+                accentTextColor={getButtonText()}
               />
               {isResident && (
                 <Toggle
@@ -422,6 +442,8 @@ export default function CalcRentVsBuyScreen() {
                   value={isFirstTimeBuyer}
                   onToggle={() => setIsFirstTimeBuyer(!isFirstTimeBuyer)}
                   isDark={isDark}
+                  accentColor={getAccentColor()}
+                  accentTextColor={getButtonText()}
                 />
               )}
             </Section>
@@ -445,6 +467,8 @@ export default function CalcRentVsBuyScreen() {
                 selected={monthlyRent}
                 onSelect={setMonthlyRent}
                 isDark={isDark}
+                accentColor={getAccentColor()}
+                accentTextColor={getButtonText()}
               />
 
               <View className="mt-4">
@@ -478,6 +502,8 @@ export default function CalcRentVsBuyScreen() {
                 selected={yearsToCompare}
                 onSelect={setYearsToCompare}
                 isDark={isDark}
+                accentColor={getAccentColor()}
+                accentTextColor={getButtonText()}
               />
             </Section>
 
@@ -763,11 +789,10 @@ export default function CalcRentVsBuyScreen() {
               <Animated.View entering={FadeInUp.delay(600).duration(400)} className="mt-1">
                 <Pressable
                   onPress={() => router.push('/calc-costs' as any)}
-                  className={`rounded-2xl py-4 items-center flex-row justify-center ${
-                    isDark ? 'bg-white' : 'bg-black'
-                  }`}>
-                  <Feather name="file-text" size={16} color={isDark ? '#000' : '#fff'} />
-                  <Text className={`ml-2 text-base font-bold ${isDark ? 'text-black' : 'text-white'}`}>
+                  style={{ backgroundColor: getButtonBg() }}
+                  className="rounded-2xl py-4 items-center flex-row justify-center">
+                  <Feather name="file-text" size={16} color={getButtonText()} />
+                  <Text style={{ color: getButtonText() }} className="ml-2 text-base font-bold">
                     View Upfront Costs
                   </Text>
                 </Pressable>
