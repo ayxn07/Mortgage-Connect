@@ -42,18 +42,23 @@ export async function fetchAgentById(agentId: string): Promise<Agent | null> {
 }
 
 /**
- * Fetch featured agents for the Home screen (top 5 by rating).
+ * Fetch featured agents for the Home screen.
+ * Returns agents marked as featured by admin, ordered by rating.
  */
 export async function fetchFeaturedAgents(count = 5): Promise<Agent[]> {
   const q = query(
     collection(db, 'users'),
     where('role', '==', 'agent'),
-    orderBy('avgRating', 'desc'),
-    firestoreLimit(count)
+    where('isFeatured', '==', true)
   );
   const snapshot = await getDocs(q);
 
-  return snapshot.docs.map((d: any) => ({ ...d.data(), uid: d.id }) as Agent);
+  const agents = snapshot.docs.map((d: any) => ({ ...d.data(), uid: d.id }) as Agent);
+  
+  // Sort by rating in memory and limit
+  return agents
+    .sort((a, b) => (b.avgRating || 0) - (a.avgRating || 0))
+    .slice(0, count);
 }
 
 /**

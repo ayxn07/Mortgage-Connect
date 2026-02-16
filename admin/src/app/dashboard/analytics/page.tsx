@@ -232,7 +232,7 @@ export default function AnalyticsPage() {
   // Total property value
   const totalPropertyValue = useMemo(() => {
     return applications.reduce(
-      (sum, app) => sum + (app.propertyDetails?.propertyPrice || 0),
+      (sum, app) => sum + (app.propertyDetails?.purchasePrice || 0),
       0
     );
   }, [applications]);

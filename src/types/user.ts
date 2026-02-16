@@ -13,6 +13,8 @@ export interface User {
   phone?: string | null;
   createdAt: FirebaseFirestoreTypes.Timestamp;
   updatedAt: FirebaseFirestoreTypes.Timestamp;
+  /** FCM tokens for push notifications (supports multiple devices) */
+  fcmTokens?: string[];
 }
 
 /** Notification preference flags */

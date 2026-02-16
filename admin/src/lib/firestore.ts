@@ -108,6 +108,16 @@ export async function toggleAgentAvailability(
   });
 }
 
+export async function toggleAgentFeatured(
+  uid: string,
+  isFeatured: boolean
+): Promise<void> {
+  await updateDoc(doc(db, "users", uid), {
+    isFeatured,
+    updatedAt: Timestamp.now(),
+  });
+}
+
 export async function fetchAgentReviews(agentId: string): Promise<Review[]> {
   const q = query(
     collection(db, "reviews"),

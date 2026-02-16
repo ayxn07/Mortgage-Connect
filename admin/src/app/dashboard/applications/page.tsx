@@ -4,7 +4,6 @@ import { useEffect, useState, useMemo } from "react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -40,11 +39,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
+
 import {
   Search,
   MoreHorizontal,
@@ -54,21 +51,37 @@ import {
   Clock,
   FileText,
   Loader2,
-  Download,
   Edit,
   UserPlus,
+  X,
+  User as UserIcon,
+  Briefcase,
+  Building2,
+  DollarSign,
+  FolderOpen,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  CreditCard,
+  Home,
+  TrendingUp,
+  Percent,
+  AlertCircle,
+  StickyNote,
 } from "lucide-react";
 import {
   subscribeToApplications,
   updateApplicationStatus,
   assignAgentToApplication,
   fetchAllAgents,
-  fetchUserById,
 } from "@/lib/firestore";
-import { MortgageApplication, ApplicationStatus, Agent, User } from "@/lib/types";
-import { formatDistanceToNow, format } from "date-fns";
+import { DocumentViewer } from "@/components/document-viewer";
+import { MortgageApplication, ApplicationStatus, Agent } from "@/lib/types";
+import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { useTheme } from "@/lib/theme-context";
+import { cn } from "@/lib/utils";
 
 const STATUS_OPTIONS: {
   value: ApplicationStatus;
@@ -136,7 +149,6 @@ export default function ApplicationsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
-  const [applicantUser, setApplicantUser] = useState<User | null>(null);
   const { themeColor } = useTheme();
 
   useEffect(() => {
@@ -173,16 +185,9 @@ export default function ApplicationsPage() {
     return counts;
   }, [applications]);
 
-  const handleViewDetails = async (app: MortgageApplication) => {
+  const handleViewDetails = (app: MortgageApplication) => {
     setSelectedApp(app);
     setShowDetail(true);
-    // Load applicant user details
-    try {
-      const user = await fetchUserById(app.userId);
-      setApplicantUser(user);
-    } catch {
-      setApplicantUser(null);
-    }
   };
 
   const handleStatusUpdate = async () => {
@@ -389,14 +394,14 @@ export default function ApplicationsPage() {
                             {app.propertyDetails?.propertyType || "N/A"}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {app.propertyDetails?.area || ""}
+                            {app.propertyDetails?.locationArea || ""}
                           </p>
                         </div>
                       </TableCell>
                       <TableCell>
                         <p className="text-sm font-medium">
                           AED{" "}
-                          {app.propertyDetails?.propertyPrice?.toLocaleString() ||
+                          {app.propertyDetails?.purchasePrice?.toLocaleString() ||
                             "0"}
                         </p>
                       </TableCell>
@@ -458,394 +463,47 @@ export default function ApplicationsPage() {
         </CardContent>
       </Card>
 
-      {/* Application Detail Dialog */}
+      {/* Application Detail - Full Screen Overlay */}
       <Dialog open={showDetail} onOpenChange={setShowDetail}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Application Details</DialogTitle>
-            <DialogDescription>
-              ID: {selectedApp?.applicationId}
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent
+          showCloseButton={false}
+          className="!w-[95vw] !max-w-[1800px] !h-[90vh] p-0 overflow-hidden rounded-2xl gap-0 flex flex-col"
+        >
+          {/* Sticky Header */}
+          <div className="flex items-center justify-between border-b px-6 py-4">
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <FileText className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-semibold">
+                  {selectedApp?.applicantIdentity?.fullName || "Application Details"}
+                </DialogTitle>
+                <DialogDescription className="text-xs font-mono text-muted-foreground">
+                  ID: {selectedApp?.applicationId}
+                </DialogDescription>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {selectedApp && (
+                <Badge variant="secondary" className={cn("text-sm px-3 py-1", getStatusInfo(selectedApp.status).color)}>
+                  {getStatusInfo(selectedApp.status).label}
+                </Badge>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-lg"
+                onClick={() => setShowDetail(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Tab Navigation */}
           {selectedApp && (
-            <Tabs defaultValue="personal" className="w-full">
-              <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="personal">Personal</TabsTrigger>
-                <TabsTrigger value="employment">Employment</TabsTrigger>
-                <TabsTrigger value="property">Property</TabsTrigger>
-                <TabsTrigger value="financial">Financial</TabsTrigger>
-                <TabsTrigger value="documents">Documents</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="personal" className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Full Name</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.applicantIdentity?.fullName || "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Nationality</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.applicantIdentity?.nationality || "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Date of Birth</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.applicantIdentity?.dateOfBirth || "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Gender</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.applicantIdentity?.gender || "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Emirates ID</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.applicantIdentity?.emiratesId || "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Passport</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.applicantIdentity?.passportNumber || "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Email</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.contactResidency?.email || "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Mobile</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.contactResidency?.mobile || "N/A"}
-                    </p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-muted-foreground">Address</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.contactResidency?.currentAddress || "N/A"},{" "}
-                      {selectedApp.contactResidency?.emirate || ""}
-                    </p>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="employment" className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Employment Type</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.employmentIncome?.employmentType || "N/A"}
-                    </p>
-                  </div>
-                  {selectedApp.employmentIncome?.salariedDetails && (
-                    <>
-                      <div>
-                        <p className="text-muted-foreground">Company</p>
-                        <p className="mt-1 font-medium">
-                          {selectedApp.employmentIncome.salariedDetails
-                            .companyName || "N/A"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Job Title</p>
-                        <p className="mt-1 font-medium">
-                          {selectedApp.employmentIncome.salariedDetails
-                            .jobTitle || "N/A"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Monthly Salary</p>
-                        <p className="mt-1 font-medium">
-                          AED{" "}
-                          {selectedApp.employmentIncome.salariedDetails.totalMonthlySalary?.toLocaleString() ||
-                            "0"}
-                        </p>
-                      </div>
-                    </>
-                  )}
-                  {selectedApp.employmentIncome?.selfEmployedDetails && (
-                    <>
-                      <div>
-                        <p className="text-muted-foreground">Business Name</p>
-                        <p className="mt-1 font-medium">
-                          {selectedApp.employmentIncome.selfEmployedDetails
-                            .businessName || "N/A"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Monthly Income</p>
-                        <p className="mt-1 font-medium">
-                          AED{" "}
-                          {selectedApp.employmentIncome.selfEmployedDetails.monthlyNetIncome?.toLocaleString() ||
-                            "0"}
-                        </p>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="property" className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Property Type</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.propertyDetails?.propertyType || "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Developer</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.propertyDetails?.developer || "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Area</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.propertyDetails?.area || "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Property Price</p>
-                    <p className="mt-1 font-medium">
-                      AED{" "}
-                      {selectedApp.propertyDetails?.propertyPrice?.toLocaleString() ||
-                        "0"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Size</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.propertyDetails?.propertySize || "N/A"} sqft
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Bedrooms</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.propertyDetails?.bedrooms || "N/A"}
-                    </p>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <h4 className="font-medium text-sm">Mortgage Preferences</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Loan Amount</p>
-                    <p className="mt-1 font-medium">
-                      AED{" "}
-                      {selectedApp.mortgagePreferences?.loanAmount?.toLocaleString() ||
-                        "0"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Down Payment</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.mortgagePreferences?.downPaymentPercent || 0}%
-                      (AED{" "}
-                      {selectedApp.mortgagePreferences?.downPaymentAmount?.toLocaleString() ||
-                        "0"}
-                      )
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Loan Tenure</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.mortgagePreferences?.loanTenure || "N/A"}{" "}
-                      years
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Interest Type</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.mortgagePreferences?.interestType || "N/A"}
-                    </p>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="financial" className="space-y-4 mt-4">
-                <h4 className="font-medium text-sm">Eligibility Results</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Eligible</p>
-                    <Badge
-                      variant="secondary"
-                      className={
-                        selectedApp.eligibilityResults?.isEligible
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
-                      }
-                    >
-                      {selectedApp.eligibilityResults?.isEligible
-                        ? "Yes"
-                        : "No"}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Eligible Loan</p>
-                    <p className="mt-1 font-medium">
-                      AED{" "}
-                      {selectedApp.eligibilityResults?.eligibleLoanAmount?.toLocaleString() ||
-                        "0"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Estimated EMI</p>
-                    <p className="mt-1 font-medium">
-                      AED{" "}
-                      {selectedApp.eligibilityResults?.estimatedEMI?.toLocaleString() ||
-                        "0"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">DBR</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.eligibilityResults?.debtBurdenRatio?.toFixed(
-                        1
-                      ) || "0"}
-                      %
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">LTV Ratio</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.eligibilityResults?.ltvRatio?.toFixed(1) ||
-                        "0"}
-                      %
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Interest Rate</p>
-                    <p className="mt-1 font-medium">
-                      {selectedApp.eligibilityResults?.interestRate?.toFixed(
-                        2
-                      ) || "0"}
-                      %
-                    </p>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <h4 className="font-medium text-sm">Financial Obligations</h4>
-                <div className="text-sm">
-                  <p className="text-muted-foreground">Total Monthly EMI</p>
-                  <p className="mt-1 font-medium">
-                    AED{" "}
-                    {selectedApp.financialObligations?.totalMonthlyEMI?.toLocaleString() ||
-                      "0"}
-                  </p>
-                </div>
-                {selectedApp.financialObligations?.existingLoans?.length >
-                  0 && (
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">
-                      Existing Loans
-                    </p>
-                    {selectedApp.financialObligations.existingLoans.map(
-                      (loan, i) => (
-                        <div
-                          key={i}
-                          className="p-2 bg-muted rounded text-sm grid grid-cols-3 gap-2"
-                        >
-                          <div>
-                            <span className="text-muted-foreground">Type:</span>{" "}
-                            {loan.type}
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">EMI:</span>{" "}
-                            AED {loan.monthlyEMI?.toLocaleString()}
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">
-                              Balance:
-                            </span>{" "}
-                            AED {loan.outstandingBalance?.toLocaleString()}
-                          </div>
-                        </div>
-                      )
-                    )}
-                  </div>
-                )}
-
-                {selectedApp.notes && (
-                  <>
-                    <Separator />
-                    <div>
-                      <p className="text-sm text-muted-foreground">
-                        Admin Notes
-                      </p>
-                      <p className="mt-1 text-sm bg-muted p-3 rounded">
-                        {selectedApp.notes}
-                      </p>
-                    </div>
-                  </>
-                )}
-              </TabsContent>
-
-              <TabsContent value="documents" className="space-y-4 mt-4">
-                {selectedApp.documentUploads?.documents?.length > 0 ? (
-                  <div className="space-y-3">
-                    {selectedApp.documentUploads.documents.map((doc) => {
-                      const isImage = doc.mimeType?.startsWith('image/');
-                      return (
-                        <div
-                          key={doc.id}
-                          className="flex items-start justify-between p-3 bg-muted rounded-lg gap-3"
-                        >
-                          <div className="flex items-start gap-3 flex-1">
-                            {isImage && doc.downloadURL ? (
-                              <img
-                                src={doc.downloadURL}
-                                alt={doc.fileName}
-                                className="h-16 w-16 object-cover rounded border"
-                              />
-                            ) : (
-                              <FileText className="h-5 w-5 text-muted-foreground mt-1" />
-                            )}
-                            <div className="flex-1">
-                              <p className="text-sm font-medium">
-                                {doc.fileName}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {doc.category} &middot;{" "}
-                                {(doc.fileSize / 1024).toFixed(1)} KB
-                              </p>
-                            </div>
-                          </div>
-                          {doc.downloadURL && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                window.open(doc.downloadURL, "_blank")
-                              }
-                            >
-                              <Download className="h-4 w-4 mr-1" />
-                              {isImage ? 'View' : 'Download'}
-                            </Button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No documents uploaded
-                  </p>
-                )}
-              </TabsContent>
-            </Tabs>
+            <DetailTabs app={selectedApp} />
           )}
         </DialogContent>
       </Dialog>
@@ -951,6 +609,363 @@ export default function ApplicationsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+/* ================================================================
+   Detail Tabs - a dedicated component for the application detail view
+   ================================================================ */
+
+const DETAIL_TABS = [
+  { id: "personal", label: "Personal", icon: UserIcon },
+  { id: "employment", label: "Employment", icon: Briefcase },
+  { id: "property", label: "Property", icon: Building2 },
+  { id: "financial", label: "Financial", icon: DollarSign },
+  { id: "documents", label: "Documents", icon: FolderOpen },
+] as const;
+
+type TabId = (typeof DETAIL_TABS)[number]["id"];
+
+function DetailTabs({ app }: { app: MortgageApplication }) {
+  const [activeTab, setActiveTab] = useState<TabId>("personal");
+
+  return (
+    <div className="flex flex-1 min-h-0">
+      {/* Side Navigation - Fixed at top, full height */}
+      <div className="w-52 border-r bg-muted/20 flex-shrink-0 overflow-y-auto">
+        <nav className="flex flex-col gap-1 p-3">
+          {DETAIL_TABS.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors text-left",
+                  activeTab === tab.id
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                )}
+              >
+                <Icon className="h-4 w-4 flex-shrink-0" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Content Area - Scrollable */}
+      <div className="flex-1 overflow-y-auto p-6">
+        {activeTab === "personal" && <PersonalTab app={app} />}
+        {activeTab === "employment" && <EmploymentTab app={app} />}
+        {activeTab === "property" && <PropertyTab app={app} />}
+        {activeTab === "financial" && <FinancialTab app={app} />}
+        {activeTab === "documents" && (
+          <DocumentViewer
+            documents={app.documentUploads?.documents || []}
+            applicantName={app.applicantIdentity?.fullName || "Applicant"}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---- Reusable info field ---- */
+
+function InfoField({
+  icon: Icon,
+  label,
+  value,
+  mono,
+  full,
+}: {
+  icon?: typeof UserIcon;
+  label: string;
+  value: string | number | undefined | null;
+  mono?: boolean;
+  full?: boolean;
+}) {
+  return (
+    <div className={cn("space-y-1", full && "col-span-2 md:col-span-3")}>
+      <div className="flex items-center gap-1.5">
+        {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
+        <p className="text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
+      </div>
+      <p className={cn("text-sm font-medium", mono && "font-mono")}>
+        {value || "N/A"}
+      </p>
+    </div>
+  );
+}
+
+/* ---- Section wrapper ---- */
+
+function DetailSection({
+  title,
+  icon: Icon,
+  children,
+}: {
+  title: string;
+  icon: typeof UserIcon;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-3">
+        <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Icon className="h-4 w-4 text-primary" />
+        </div>
+        <h3 className="text-base font-semibold">{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/* ---- Tab content: Personal ---- */
+
+function PersonalTab({ app }: { app: MortgageApplication }) {
+  return (
+    <div className="space-y-8">
+      <DetailSection title="Identity Information" icon={UserIcon}>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-5 rounded-xl border bg-card p-5">
+          <InfoField icon={UserIcon} label="Full Name" value={app.applicantIdentity?.fullName} />
+          <InfoField label="Nationality" value={app.applicantIdentity?.nationality} />
+          <InfoField icon={Calendar} label="Date of Birth" value={app.applicantIdentity?.dateOfBirth} />
+          <InfoField label="Gender" value={app.applicantIdentity?.gender} />
+          <InfoField label="Marital Status" value={app.applicantIdentity?.maritalStatus} />
+          <InfoField label="Number of Dependents" value={app.applicantIdentity?.numberOfDependents} />
+          <InfoField icon={CreditCard} label="Emirates ID" value={app.applicantIdentity?.emiratesIdNumber} mono />
+          <InfoField label="Emirates ID Expiry" value={app.applicantIdentity?.emiratesIdExpiry} mono />
+          <InfoField label="Passport No." value={app.applicantIdentity?.passportNumber} mono />
+          <InfoField label="Passport Expiry" value={app.applicantIdentity?.passportExpiry} mono />
+        </div>
+      </DetailSection>
+
+      <DetailSection title="Contact & Residency" icon={Phone}>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-5 rounded-xl border bg-card p-5">
+          <InfoField icon={Mail} label="Email" value={app.contactResidency?.email} />
+          <InfoField icon={Phone} label="Mobile" value={app.contactResidency?.mobileNumber} />
+          <InfoField label="Emirate" value={app.contactResidency?.emirate} />
+          <InfoField label="Residential Status" value={app.contactResidency?.residentialStatus} />
+          <InfoField label="Years in UAE" value={app.contactResidency?.yearsInUAE} />
+          <InfoField icon={MapPin} label="Address" value={app.contactResidency?.currentAddress} full />
+        </div>
+      </DetailSection>
+    </div>
+  );
+}
+
+/* ---- Tab content: Employment ---- */
+
+function EmploymentTab({ app }: { app: MortgageApplication }) {
+  const emp = app.employmentIncome;
+  return (
+    <div className="space-y-8">
+      <DetailSection title="Employment Details" icon={Briefcase}>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-5 rounded-xl border bg-card p-5">
+          <InfoField icon={Briefcase} label="Employment Type" value={emp?.employmentType} />
+          {emp?.salaried && (
+            <>
+              <InfoField icon={Building2} label="Employer Name" value={emp.salaried.employerName} />
+              <InfoField label="Employer Industry" value={emp.salaried.employerIndustry} />
+              <InfoField label="Job Title" value={emp.salaried.jobTitle} />
+              <InfoField
+                icon={DollarSign}
+                label="Monthly Gross Salary"
+                value={emp.salaried.monthlyGrossSalary ? `AED ${emp.salaried.monthlyGrossSalary.toLocaleString()}` : undefined}
+              />
+              <InfoField
+                label="Monthly Net Salary"
+                value={emp.salaried.monthlyNetSalary ? `AED ${emp.salaried.monthlyNetSalary.toLocaleString()}` : undefined}
+              />
+              <InfoField label="Length of Service" value={emp.salaried.lengthOfServiceMonths ? `${emp.salaried.lengthOfServiceMonths} months` : undefined} />
+              <InfoField label="Employment Type" value={emp.salaried.salariedEmploymentType} />
+              <InfoField label="Salary Transfer Bank" value={emp.salaried.salaryTransferBank} />
+            </>
+          )}
+          {emp?.selfEmployed && (
+            <>
+              <InfoField icon={Building2} label="Company Name" value={emp.selfEmployed.companyName} />
+              <InfoField label="Trade License No." value={emp.selfEmployed.tradeLicenseNumber} mono />
+              <InfoField label="Company Age" value={emp.selfEmployed.companyAgeYears ? `${emp.selfEmployed.companyAgeYears} years` : undefined} />
+              <InfoField
+                icon={DollarSign}
+                label="Monthly Average Income"
+                value={emp.selfEmployed.monthlyAverageIncome ? `AED ${emp.selfEmployed.monthlyAverageIncome.toLocaleString()}` : undefined}
+              />
+              <InfoField label="Office Location" value={emp.selfEmployed.officeLocation} />
+              <InfoField label="Ownership %" value={emp.selfEmployed.ownershipPercentage ? `${emp.selfEmployed.ownershipPercentage}%` : undefined} />
+            </>
+          )}
+        </div>
+      </DetailSection>
+    </div>
+  );
+}
+
+/* ---- Tab content: Property ---- */
+
+function PropertyTab({ app }: { app: MortgageApplication }) {
+  return (
+    <div className="space-y-8">
+      <DetailSection title="Property Details" icon={Home}>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-5 rounded-xl border bg-card p-5">
+          <InfoField icon={Home} label="Property Type" value={app.propertyDetails?.propertyType} />
+          <InfoField label="Property Identified" value={app.propertyDetails?.propertyIdentified ? "Yes" : "No"} />
+          <InfoField label="Property Status" value={app.propertyDetails?.propertyStatus} />
+          <InfoField icon={Building2} label="Developer" value={app.propertyDetails?.developerName} />
+          <InfoField label="Project Name" value={app.propertyDetails?.projectName} />
+          <InfoField icon={MapPin} label="Area" value={app.propertyDetails?.locationArea} />
+          <InfoField
+            icon={DollarSign}
+            label="Purchase Price"
+            value={app.propertyDetails?.purchasePrice ? `AED ${app.propertyDetails.purchasePrice.toLocaleString()}` : undefined}
+          />
+          <InfoField label="Size" value={app.propertyDetails?.unitSizeSqft ? `${app.propertyDetails.unitSizeSqft} sqft` : undefined} />
+          <InfoField label="Bedrooms" value={app.propertyDetails?.numberOfBedrooms} />
+          <InfoField label="Parking Included" value={app.propertyDetails?.parkingIncluded ? "Yes" : "No"} />
+          <InfoField label="Expected Completion" value={app.propertyDetails?.expectedCompletionDate} />
+        </div>
+      </DetailSection>
+
+      <DetailSection title="Mortgage Preferences" icon={Percent}>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-5 rounded-xl border bg-card p-5">
+          <InfoField
+            icon={DollarSign}
+            label="Property Value"
+            value={app.mortgagePreferences?.propertyValue ? `AED ${app.mortgagePreferences.propertyValue.toLocaleString()}` : undefined}
+          />
+          <InfoField
+            icon={DollarSign}
+            label="Preferred Loan Amount"
+            value={app.mortgagePreferences?.preferredLoanAmount ? `AED ${app.mortgagePreferences.preferredLoanAmount.toLocaleString()}` : undefined}
+          />
+          <InfoField
+            label="Down Payment"
+            value={
+              app.mortgagePreferences?.downPaymentPercent != null
+                ? `${app.mortgagePreferences.downPaymentPercent}% (AED ${app.mortgagePreferences?.downPaymentAmount?.toLocaleString() || "0"})`
+                : undefined
+            }
+          />
+          <InfoField label="Loan Tenure" value={app.mortgagePreferences?.loanTenureYears ? `${app.mortgagePreferences.loanTenureYears} years` : undefined} />
+          <InfoField label="Interest Type" value={app.mortgagePreferences?.interestType} />
+          <InfoField label="First Time Buyer" value={app.mortgagePreferences?.isFirstTimeBuyer ? "Yes" : "No"} />
+        </div>
+      </DetailSection>
+    </div>
+  );
+}
+
+/* ---- Tab content: Financial ---- */
+
+function FinancialTab({ app }: { app: MortgageApplication }) {
+  const elig = app.eligibilityResults;
+  const fin = app.financialObligations;
+
+  return (
+    <div className="space-y-8">
+      <DetailSection title="Eligibility Results" icon={CheckCircle2}>
+        <div className="rounded-xl border bg-card p-5 space-y-5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-5">
+            <InfoField
+              icon={DollarSign}
+              label="Eligible Loan Amount"
+              value={elig?.eligibleLoanAmount ? `AED ${elig.eligibleLoanAmount.toLocaleString()}` : undefined}
+            />
+            <InfoField
+              label="Estimated EMI"
+              value={elig?.estimatedEMI ? `AED ${elig.estimatedEMI.toLocaleString()}` : undefined}
+            />
+            <InfoField
+              icon={Percent}
+              label="Interest Rate Range"
+              value={elig?.approxRateMin != null && elig?.approxRateMax != null 
+                ? `${elig.approxRateMin.toFixed(2)}% - ${elig.approxRateMax.toFixed(2)}%` 
+                : undefined}
+            />
+            <InfoField
+              label="Debt Burden Ratio (DBR)"
+              value={elig?.dbrPercent != null ? `${elig.dbrPercent.toFixed(1)}%` : undefined}
+            />
+            <InfoField
+              label="LTV Ratio"
+              value={elig?.ltvPercent != null ? `${elig.ltvPercent.toFixed(1)}%` : undefined}
+            />
+            <InfoField
+              label="Eligible Banks"
+              value={elig?.eligibleBanksCount != null ? `${elig.eligibleBanksCount} banks` : undefined}
+            />
+            {elig?.additionalDownPaymentRequired > 0 && (
+              <InfoField
+                icon={DollarSign}
+                label="Additional Down Payment Required"
+                value={`AED ${elig.additionalDownPaymentRequired.toLocaleString()}`}
+              />
+            )}
+          </div>
+        </div>
+      </DetailSection>
+
+      <DetailSection title="Financial Obligations" icon={CreditCard}>
+        <div className="rounded-xl border bg-card p-5 space-y-5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-5">
+            <InfoField
+              icon={DollarSign}
+              label="Total Monthly EMI"
+              value={fin?.totalMonthlyEMI ? `AED ${fin.totalMonthlyEMI.toLocaleString()}` : "AED 0"}
+            />
+            <InfoField
+              label="Has Existing Loans"
+              value={fin?.hasExistingLoans ? "Yes" : "No"}
+            />
+            <InfoField
+              label="Credit Cards"
+              value={fin?.creditCardsCount != null ? `${fin.creditCardsCount} cards` : undefined}
+            />
+            <InfoField
+              icon={DollarSign}
+              label="Total Credit Card Limit"
+              value={fin?.totalCreditCardLimit ? `AED ${fin.totalCreditCardLimit.toLocaleString()}` : undefined}
+            />
+          </div>
+
+          {fin?.loans?.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Existing Loans</p>
+              <div className="space-y-2">
+                {fin.loans.map((loan, i) => (
+                  <div
+                    key={i}
+                    className="grid grid-cols-2 gap-4 rounded-lg bg-muted/40 border px-4 py-3 text-sm"
+                  >
+                    <div>
+                      <p className="text-xs text-muted-foreground">Type</p>
+                      <p className="font-medium">{loan.label || loan.type}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Monthly EMI</p>
+                      <p className="font-medium">AED {loan.emiAmount?.toLocaleString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </DetailSection>
+
+      {app.notes && (
+        <DetailSection title="Admin Notes" icon={StickyNote}>
+          <div className="rounded-xl border bg-muted/30 p-5">
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{app.notes}</p>
+          </div>
+        </DetailSection>
+      )}
     </div>
   );
 }

@@ -695,7 +695,7 @@ export default function DashboardPage() {
                       <p className="text-[11px] text-muted-foreground">
                         {app.propertyDetails?.propertyType || "N/A"} &middot;
                         AED{" "}
-                        {app.propertyDetails?.propertyPrice?.toLocaleString() ||
+                        {app.propertyDetails?.purchasePrice?.toLocaleString() ||
                           "0"}
                       </p>
                     </div>

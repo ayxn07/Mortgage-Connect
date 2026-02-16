@@ -8,6 +8,7 @@ export default function ChatLayout() {
         animation: 'slide_from_right',
       }}>
       <Stack.Screen name="[chatId]" />
+      <Stack.Screen name="chat-profile" />
     </Stack>
   );
 }

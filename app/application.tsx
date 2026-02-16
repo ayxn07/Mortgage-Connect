@@ -376,13 +376,14 @@ function SectionCard({
 // Document Upload Card
 // =====================================================================
 function DocUploadCard({
-  label, category, documents, onPick, onRemove, isDark, required, hint,
+  label, category, documents, onPick, onRemove, isDark, required, hint, successColor, successText,
 }: {
   label: string; category: DocumentCategory;
   documents: UploadedDocument[];
   onPick: (category: DocumentCategory) => void;
   onRemove: (docId: string) => void;
   isDark: boolean; required?: boolean; hint?: string;
+  successColor: string; successText: string;
 }) {
   const uploaded = documents.filter((d) => d.category === category);
   const hasDoc = uploaded.length > 0;
@@ -400,22 +401,26 @@ function DocUploadCard({
     }
   };
 
+  const successBgClass = successColor === '#fff' ? 'bg-white/5' : 'bg-green-500/5';
+  const successBorderClass = successColor === '#fff' ? 'border-white/30' : 'border-green-500/30';
+  const successIconBgClass = successColor === '#fff' ? 'bg-white/10' : 'bg-green-500/10';
+
   return (
     <View className="mb-3">
       <Pressable
         onPress={() => onPick(category)}
         className={`flex-row items-center p-4 rounded-2xl border ${
           hasDoc
-            ? 'border-green-500/30 bg-green-500/5'
+            ? `${successBorderClass} ${successBgClass}`
             : isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
         }`}>
         <View className={`w-10 h-10 rounded-xl items-center justify-center mr-3 ${
-          hasDoc ? 'bg-green-500/10' : isDark ? 'bg-[#2a2a2a]' : 'bg-gray-100'
+          hasDoc ? successIconBgClass : isDark ? 'bg-[#2a2a2a]' : 'bg-gray-100'
         }`}>
           <Feather
             name={hasDoc ? 'check-circle' : 'upload'}
             size={18}
-            color={hasDoc ? '#22c55e' : isDark ? '#888' : '#666'}
+            color={hasDoc ? successColor : isDark ? '#888' : '#666'}
           />
         </View>
         <View className="flex-1">
@@ -426,7 +431,7 @@ function DocUploadCard({
               <Text className={`text-[10px] ml-2 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>(Optional)</Text>
             )}
           </View>
-          <Text className={`text-xs mt-0.5 ${hasDoc ? 'text-green-500' : isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+          <Text className={`text-xs mt-0.5 ${hasDoc ? successText : isDark ? 'text-gray-500' : 'text-gray-400'}`}>
             {hasDoc ? `${uploaded.length} file${uploaded.length > 1 ? 's' : ''} uploaded` : 'Tap to upload'}
           </Text>
         </View>
@@ -451,7 +456,7 @@ function DocUploadCard({
                 resizeMode="cover"
               />
             ) : (
-              <Feather name="file" size={14} color="#22c55e" />
+              <Feather name="file" size={14} color={successColor} />
             )}
             <View className="flex-1 ml-2">
               <Text className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`} numberOfLines={1}>
@@ -633,7 +638,17 @@ export default function ApplicationScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const params = useLocalSearchParams();
   const { toast, showToast, hideToast } = useToast();
-  const { getButtonBg, getButtonText } = useThemeColors();
+  const { getButtonBg, getButtonText, getAccentColor } = useThemeColors();
+  
+  // Check if accent color is default (black/white) or custom
+  const accentColor = getAccentColor();
+  const isDefaultTheme = accentColor === '#1a1a1a' || accentColor === '#ebebeb' || 
+                         accentColor === '#000' || accentColor === '#fff' ||
+                         accentColor === '#000000' || accentColor === '#ffffff';
+  const successColor = isDefaultTheme ? '#22c55e' : '#fff';
+  const successBg = isDefaultTheme ? 'bg-green-500' : 'bg-white';
+  const successBorder = isDefaultTheme ? 'border-green-500' : 'border-white';
+  const successText = isDefaultTheme ? 'text-green-500' : 'text-white';
   
   // Check if we should load draft or start fresh
   const shouldLoadDraft = params.continueDraft === 'true';
@@ -837,6 +852,29 @@ export default function ApplicationScreen() {
       additionalDownPaymentRequired: additionalDP,
     });
   }, [employment, financial, mortgage]);
+
+  // Auto-recalculate eligibility when relevant data changes
+  React.useEffect(() => {
+    // Only recalculate if we have minimum required data
+    const salary = employment.employmentType === 'salaried' || employment.employmentType === ''
+      ? employment.salaried.monthlyNetSalary
+      : employment.selfEmployed.monthlyAverageIncome;
+
+    if (salary > 0 && mortgage.propertyValue > 0 && mortgage.preferredLoanAmount > 0) {
+      computeEligibility();
+    }
+  }, [
+    employment.employmentType,
+    employment.salaried.monthlyNetSalary,
+    employment.selfEmployed.monthlyAverageIncome,
+    financial.totalMonthlyEMI,
+    mortgage.propertyValue,
+    mortgage.downPaymentAmount,
+    mortgage.preferredLoanAmount,
+    mortgage.loanTenureYears,
+    mortgage.isFirstTimeBuyer,
+    computeEligibility,
+  ]);
 
   // ---- Validation ----
   const validateStep = (step: number): boolean => {
@@ -1304,16 +1342,16 @@ export default function ApplicationScreen() {
               <SectionCard icon="upload" title="Upload KYC Documents" isDark={isDark} delay={300}>
                 <DocUploadCard label="Emirates ID (Front)" category="emirates_id_front"
                   documents={documents.documents} onPick={handlePickDocument}
-                  onRemove={handleRemoveDocument} isDark={isDark} required />
+                  onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText} required />
                 <DocUploadCard label="Emirates ID (Back)" category="emirates_id_back"
                   documents={documents.documents} onPick={handlePickDocument}
-                  onRemove={handleRemoveDocument} isDark={isDark} required />
+                  onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText} required />
                 <DocUploadCard label="Passport Copy" category="passport"
                   documents={documents.documents} onPick={handlePickDocument}
-                  onRemove={handleRemoveDocument} isDark={isDark} required />
+                  onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText} required />
                 <DocUploadCard label="Visa Page" category="visa"
                   documents={documents.documents} onPick={handlePickDocument}
-                  onRemove={handleRemoveDocument} isDark={isDark}
+                  onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText}
                   hint="Required if not a UAE national" />
               </SectionCard>
             </Animated.View>
@@ -1444,30 +1482,30 @@ export default function ApplicationScreen() {
                   <>
                     <DocUploadCard label="Salary Certificate" category="salary_certificate"
                       documents={documents.documents} onPick={handlePickDocument}
-                      onRemove={handleRemoveDocument} isDark={isDark} required />
+                      onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText} required />
                     <DocUploadCard label="Bank Statements (3-6 months)" category="bank_statements"
                       documents={documents.documents} onPick={handlePickDocument}
-                      onRemove={handleRemoveDocument} isDark={isDark} required
+                      onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText} required
                       hint="Last 3-6 months statements from salary transfer bank" />
                     <DocUploadCard label="Labour Contract" category="labour_contract"
                       documents={documents.documents} onPick={handlePickDocument}
-                      onRemove={handleRemoveDocument} isDark={isDark} />
+                      onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText} />
                   </>
                 ) : (
                   <>
                     <DocUploadCard label="Trade License" category="trade_license"
                       documents={documents.documents} onPick={handlePickDocument}
-                      onRemove={handleRemoveDocument} isDark={isDark} required />
+                      onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText} required />
                     <DocUploadCard label="Memorandum of Association (MOA)" category="moa"
                       documents={documents.documents} onPick={handlePickDocument}
-                      onRemove={handleRemoveDocument} isDark={isDark} />
+                      onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText} />
                     <DocUploadCard label="Bank Statements (6-12 months)" category="bank_statements"
                       documents={documents.documents} onPick={handlePickDocument}
-                      onRemove={handleRemoveDocument} isDark={isDark} required
+                      onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText} required
                       hint="Last 6-12 months business bank statements" />
                     <DocUploadCard label="Audited Financials" category="audited_financials"
                       documents={documents.documents} onPick={handlePickDocument}
-                      onRemove={handleRemoveDocument} isDark={isDark}
+                      onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText}
                       hint="If available — strengthens your application" />
                   </>
                 )}
@@ -1789,20 +1827,20 @@ export default function ApplicationScreen() {
                 </Text>
                 <DocUploadCard label="Emirates ID (Front & Back)" category="emirates_id_front"
                   documents={documents.documents} onPick={handlePickDocument}
-                  onRemove={handleRemoveDocument} isDark={isDark} required />
+                  onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText} required />
                 <DocUploadCard label="Passport + Visa" category="passport"
                   documents={documents.documents} onPick={handlePickDocument}
-                  onRemove={handleRemoveDocument} isDark={isDark} required />
+                  onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText} required />
 
                 <Text className={`text-sm font-bold mb-3 mt-4 ${isDark ? 'text-white' : 'text-black'}`}>
                   Income Documents
                 </Text>
                 <DocUploadCard label="Salary Certificate / Trade License" category="salary_certificate"
                   documents={documents.documents} onPick={handlePickDocument}
-                  onRemove={handleRemoveDocument} isDark={isDark} required />
+                  onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText} required />
                 <DocUploadCard label="Bank Statements" category="bank_statements"
                   documents={documents.documents} onPick={handlePickDocument}
-                  onRemove={handleRemoveDocument} isDark={isDark} required />
+                  onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText} required />
 
                 {property.propertyIdentified && (
                   <>
@@ -1811,19 +1849,19 @@ export default function ApplicationScreen() {
                     </Text>
                     <DocUploadCard label="MOU (Memorandum of Understanding)" category="property_mou"
                       documents={documents.documents} onPick={handlePickDocument}
-                      onRemove={handleRemoveDocument} isDark={isDark} />
+                      onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText} />
                     <DocUploadCard label="Title Deed" category="title_deed"
                       documents={documents.documents} onPick={handlePickDocument}
-                      onRemove={handleRemoveDocument} isDark={isDark} />
+                      onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText} />
                     <DocUploadCard label="SPA (Sale Purchase Agreement)" category="spa"
                       documents={documents.documents} onPick={handlePickDocument}
-                      onRemove={handleRemoveDocument} isDark={isDark} />
+                      onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText} />
                   </>
                 )}
 
                 <DocUploadCard label="Other Documents" category="other"
                   documents={documents.documents} onPick={handlePickDocument}
-                  onRemove={handleRemoveDocument} isDark={isDark} />
+                  onRemove={handleRemoveDocument} isDark={isDark} successColor={successColor} successText={successText} />
               </SectionCard>
 
               <View className={`flex-row items-start p-4 rounded-xl ${isDark ? 'bg-[#111]' : 'bg-blue-50'}`}>
@@ -2050,7 +2088,7 @@ export default function ApplicationScreen() {
           {currentStep > 0 && (
             <Pressable
               onPress={goBack}
-              className={`flex-1 rounded-2xl py-3.5 items-center border ${
+              className={`w-24 rounded-2xl py-3.5 items-center border ${
                 isDark ? 'border-[#2a2a2a]' : 'border-gray-300'
               }`}>
               <Text className={`text-base font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Back</Text>
@@ -2082,7 +2120,7 @@ export default function ApplicationScreen() {
             <Pressable
               onPress={goNext}
               style={{ backgroundColor: getButtonBg() }}
-              className={`${currentStep === 0 ? 'flex-1' : 'flex-1'} rounded-2xl py-3.5 items-center`}>
+              className="flex-1 rounded-2xl py-3.5 items-center">
               <Text style={{ color: getButtonText() }} className="text-base font-bold">Continue</Text>
             </Pressable>
           ) : (

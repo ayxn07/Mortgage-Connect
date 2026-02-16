@@ -1,5 +1,14 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Image,
+  Switch,
+  Linking,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Globe,
@@ -10,11 +19,14 @@ import {
   Shield,
   Edit3,
   Palette,
+  Bell,
 } from '@/components/Icons';
 import { useRouter } from 'expo-router';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useColorScheme } from 'nativewind';
 import { useAuthStore } from '@/src/store/authStore';
+import { useNotificationStore } from '@/src/store/notificationStore';
+import { AuthorizationStatus } from '@react-native-firebase/messaging';
 import { useThemeColor } from '@/src/contexts/ThemeColorContext';
 import { useThemeColors } from '@/src/hooks/useThemeColors';
 
@@ -46,27 +58,27 @@ function SettingItem({
       onPress={onPress}
       activeOpacity={0.7}
       disabled={!onPress}
-      className={`mb-3 flex-row items-center rounded-2xl border p-4 ${isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
-        }`}>
+      className={`mb-3 flex-row items-center rounded-2xl border p-4 ${
+        isDark ? 'border-[#2a2a2a] bg-[#1a1a1a]' : 'border-gray-200 bg-white'
+      }`}>
       <View
         className="mr-3 h-10 w-10 items-center justify-center rounded-xl"
-        style={useAccentColor ? { backgroundColor: primaryColor } : { backgroundColor: isDark ? '#fff' : '#000' }}>
+        style={
+          useAccentColor
+            ? { backgroundColor: primaryColor }
+            : { backgroundColor: isDark ? '#fff' : '#000' }
+        }>
         {icon}
       </View>
       <View className="flex-1">
-        <Text className={`font-semibold ${isDark ? 'text-white' : 'text-black'}`}>
-          {title}
-        </Text>
+        <Text className={`font-semibold ${isDark ? 'text-white' : 'text-black'}`}>{title}</Text>
         {subtitle && (
           <Text className={`mt-1 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             {subtitle}
           </Text>
         )}
       </View>
-      {rightElement ||
-        (showChevron && (
-          <ChevronRight color={isDark ? '#666' : '#999'} size={20} />
-        ))}
+      {rightElement || (showChevron && <ChevronRight color={isDark ? '#666' : '#999'} size={20} />)}
     </TouchableOpacity>
   );
 }
@@ -89,6 +101,44 @@ export default function SettingsScreen() {
   const { themeColor } = useThemeColor();
   const { primaryColor, getIconColor, getButtonBg, getButtonText } = useThemeColors();
 
+  // Notification store
+  const notificationEnabled = useNotificationStore((s) => s.enabled);
+  const setNotificationEnabled = useNotificationStore((s) => s.setEnabled);
+  const checkSystemPermission = useNotificationStore((s) => s.checkSystemPermission);
+
+  // Handle notification toggle with system permission check
+  const handleNotificationToggle = async (value: boolean) => {
+    if (value) {
+      // Turning on - setEnabled will request system permission
+      await setNotificationEnabled(true);
+
+      // Check if actually enabled (might be denied by system)
+      const status = await checkSystemPermission();
+      const hasPermission =
+        status === AuthorizationStatus.AUTHORIZED || status === AuthorizationStatus.PROVISIONAL;
+
+      if (!hasPermission) {
+        Alert.alert(
+          'Permission Required',
+          'Please enable notifications for MortgageConnect in your device settings to receive push notifications.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Open Settings',
+              onPress: () => {
+                // Open app settings
+                Linking.openSettings();
+              },
+            },
+          ]
+        );
+      }
+    } else {
+      // Turning off - just disable
+      await setNotificationEnabled(false);
+    }
+  };
+
   // Auth store — real user data
   const { userDoc, firebaseUser, signOut } = useAuthStore();
   const isAdmin = userDoc?.role === 'admin';
@@ -106,11 +156,7 @@ export default function SettingsScreen() {
     .slice(0, 2);
 
   const roleBadgeText =
-    userDoc?.role === 'admin'
-      ? 'Admin'
-      : userDoc?.role === 'agent'
-      ? 'Agent'
-      : 'User';
+    userDoc?.role === 'admin' ? 'Admin' : userDoc?.role === 'agent' ? 'Agent' : 'User';
 
   const handleEditProfile = () => {
     if (isAgent) {
@@ -177,10 +223,10 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView className={`flex-1 ${isDark ? 'bg-black' : 'bg-gray-50'}`}>
       {/* Header */}
-      <View className="px-6 pt-2 pb-6">
+      <View className="px-6 pb-6 pt-2">
         <View className="flex-row items-center justify-between">
           <View>
-            <Text className={`text-sm mb-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+            <Text className={`mb-1 text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
               Manage your account
             </Text>
             <Text className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
@@ -197,23 +243,30 @@ export default function SettingsScreen() {
           paddingBottom: 120,
         }}
         showsVerticalScrollIndicator={false}>
-
         {/* Profile Card */}
         <View className="mb-6">
           <SectionHeader title="Profile" />
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={handleEditProfile}
-            className={`rounded-3xl border overflow-hidden ${
-              isDark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-gray-200'
+            className={`overflow-hidden rounded-3xl border ${
+              isDark ? 'border-[#2a2a2a] bg-[#1a1a1a]' : 'border-gray-200 bg-white'
             }`}>
             {/* Background Gradient Effect */}
             <View className={`h-24 ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
-              <View className="absolute top-0 right-0 w-32 h-32 rounded-full bg-gradient-to-br opacity-10" 
-                style={{ 
-                  backgroundColor: isAdmin ? '#a855f7' : isAgent ? '#3b82f6' : isDark ? '#fff' : '#000',
-                  transform: [{ translateX: 40 }, { translateY: -40 }]
-                }} />
+              <View
+                className="absolute right-0 top-0 h-32 w-32 rounded-full bg-gradient-to-br opacity-10"
+                style={{
+                  backgroundColor: isAdmin
+                    ? '#a855f7'
+                    : isAgent
+                      ? '#3b82f6'
+                      : isDark
+                        ? '#fff'
+                        : '#000',
+                  transform: [{ translateX: 40 }, { translateY: -40 }],
+                }}
+              />
             </View>
 
             {/* Profile Content */}
@@ -221,7 +274,7 @@ export default function SettingsScreen() {
               {/* Profile Photo with Border */}
               <View className="relative mb-4">
                 <View
-                  className={`h-20 w-20 items-center justify-center rounded-full border-4 overflow-hidden ${
+                  className={`h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 ${
                     isDark ? 'border-[#1a1a1a]' : 'border-white'
                   }`}
                   style={{
@@ -248,7 +301,7 @@ export default function SettingsScreen() {
 
               {/* User Info */}
               <View className="mb-3">
-                <Text className={`text-xl font-bold mb-1 ${isDark ? 'text-white' : 'text-black'}`}>
+                <Text className={`mb-1 text-xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                   {displayName}
                 </Text>
                 <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -263,20 +316,20 @@ export default function SettingsScreen() {
                     isAdmin
                       ? 'bg-purple-500/20'
                       : isAgent
-                      ? 'bg-blue-500/20'
-                      : isDark
-                      ? 'bg-[#2a2a2a]'
-                      : 'bg-gray-100'
+                        ? 'bg-blue-500/20'
+                        : isDark
+                          ? 'bg-[#2a2a2a]'
+                          : 'bg-gray-100'
                   }`}>
                   <Text
                     className={`text-xs font-bold ${
                       isAdmin
                         ? 'text-purple-500'
                         : isAgent
-                        ? 'text-blue-500'
-                        : isDark
-                        ? 'text-gray-400'
-                        : 'text-gray-600'
+                          ? 'text-blue-500'
+                          : isDark
+                            ? 'text-gray-400'
+                            : 'text-gray-600'
                     }`}>
                     {roleBadgeText}
                   </Text>
@@ -310,6 +363,26 @@ export default function SettingsScreen() {
         {/* Preferences Section */}
         <View className="mb-6">
           <SectionHeader title="Preferences" />
+          <SettingItem
+            icon={<Bell color={getIconColor()} size={20} />}
+            title="Push Notifications"
+            subtitle={notificationEnabled ? 'Enabled' : 'Disabled'}
+            onPress={undefined}
+            showChevron={false}
+            useAccentColor={true}
+            rightElement={
+              <Switch
+                value={notificationEnabled}
+                onValueChange={handleNotificationToggle}
+                trackColor={{
+                  false: isDark ? '#3a3a3a' : '#d1d5db',
+                  true: primaryColor,
+                }}
+                thumbColor={notificationEnabled ? '#fff' : isDark ? '#666' : '#f3f4f6'}
+                ios_backgroundColor={isDark ? '#3a3a3a' : '#d1d5db'}
+              />
+            }
+          />
           <SettingItem
             icon={<Palette color={getIconColor()} size={20} />}
             title="Theme Colors"
@@ -351,8 +424,9 @@ export default function SettingsScreen() {
           <TouchableOpacity
             onPress={handleLogout}
             activeOpacity={0.7}
-            className={`mb-3 flex-row items-center rounded-2xl border p-4 ${isDark ? 'bg-[#1a1a1a] border-red-500/30' : 'bg-white border-red-500/30'
-              }`}>
+            className={`mb-3 flex-row items-center rounded-2xl border p-4 ${
+              isDark ? 'border-red-500/30 bg-[#1a1a1a]' : 'border-red-500/30 bg-white'
+            }`}>
             <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-red-500/10">
               <LogOut color="#ef4444" size={20} />
             </View>
@@ -363,16 +437,15 @@ export default function SettingsScreen() {
           <TouchableOpacity
             onPress={handleDeleteAccount}
             activeOpacity={0.7}
-            className={`mb-3 flex-row items-center rounded-2xl border p-4 ${isDark ? 'bg-[#1a1a1a] border-red-500/30' : 'bg-white border-red-500/30'
-              }`}>
+            className={`mb-3 flex-row items-center rounded-2xl border p-4 ${
+              isDark ? 'border-red-500/30 bg-[#1a1a1a]' : 'border-red-500/30 bg-white'
+            }`}>
             <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-red-500/10">
               <Shield color="#ef4444" size={20} />
             </View>
             <View className="flex-1">
               <Text className="font-semibold text-red-500">Delete Account</Text>
-              <Text className="mt-1 text-sm text-red-500/70">
-                Permanently delete your account
-              </Text>
+              <Text className="mt-1 text-sm text-red-500/70">Permanently delete your account</Text>
             </View>
             <ChevronRight color="#ef4444" size={20} />
           </TouchableOpacity>

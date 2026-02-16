@@ -276,7 +276,6 @@ function TimelineStep({
                 : '#999'
             }
           />
-          />
         </View>
         {!isLast && (
           <View

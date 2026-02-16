@@ -650,6 +650,50 @@ export async function sendImageMessage(
 /**
  * Send a document/file message in a chat.
  */
+/**
+ * Fetch all media messages (images and documents) from a chat.
+ * Returns messages sorted by timestamp descending (newest first).
+ */
+export async function fetchChatMedia(
+  chatId: string
+): Promise<Message[]> {
+  const messagesCol = collection(db, 'chats', chatId, 'messages');
+
+  // Fetch image messages
+  const imageQuery = query(
+    messagesCol,
+    where('type', '==', 'image'),
+    where('deleted', '==', false),
+    orderBy('timestamp', 'desc')
+  );
+
+  // Fetch document messages
+  const docQuery = query(
+    messagesCol,
+    where('type', '==', 'document'),
+    where('deleted', '==', false),
+    orderBy('timestamp', 'desc')
+  );
+
+  const [imageSnap, docSnap] = await Promise.all([
+    getDocs(imageQuery),
+    getDocs(docQuery),
+  ]);
+
+  const images = imageSnap.docs.map((d: any) => d.data() as Message);
+  const docs = docSnap.docs.map((d: any) => d.data() as Message);
+
+  // Merge and sort by timestamp descending
+  const all = [...images, ...docs];
+  all.sort((a, b) => {
+    const aTime = a.timestamp?.toDate?.() ? a.timestamp.toDate().getTime() : 0;
+    const bTime = b.timestamp?.toDate?.() ? b.timestamp.toDate().getTime() : 0;
+    return bTime - aTime;
+  });
+
+  return all;
+}
+
 export async function sendDocumentMessage(
   chatId: string,
   senderId: string,

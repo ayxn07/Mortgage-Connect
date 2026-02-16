@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,20 +13,41 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Keyboard,
+  Dimensions,
+  TextInput,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from 'nativewind';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { GiftedChat, Bubble, InputToolbar, Composer, Send, Day, Time } from 'react-native-gifted-chat';
-import type { IMessage, BubbleProps, SendProps, DayProps, TimeProps } from 'react-native-gifted-chat';
+import {
+  GiftedChat,
+  Bubble,
+  InputToolbar,
+  Composer,
+  Send,
+  Day,
+  Time,
+} from 'react-native-gifted-chat';
+import type {
+  IMessage,
+  BubbleProps,
+  SendProps,
+  DayProps,
+  TimeProps,
+} from 'react-native-gifted-chat';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import * as MediaLibrary from 'expo-media-library';
+import { Paths, File } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import { useConversation } from '@/src/hooks/useChat';
 import { useThemeColors } from '@/src/hooks/useThemeColors';
 import { ArrowLeft } from '@/components/Icons';
 import { getInitials, formatRelativeTime } from '@/src/utils/formatters';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // ─── Custom Attachment Picker ─────────────────────────────────────────────────
 
@@ -54,11 +75,7 @@ function AttachmentPicker({
   ];
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable
         style={{
           flex: 1,
@@ -139,11 +156,7 @@ function AttachmentPicker({
                 }}>
                 {option.label}
               </Text>
-              <Feather
-                name="chevron-right"
-                size={20}
-                color={isDark ? '#555' : '#aaa'}
-              />
+              <Feather name="chevron-right" size={20} color={isDark ? '#555' : '#aaa'} />
             </TouchableOpacity>
           ))}
 
@@ -175,11 +188,21 @@ function AttachmentPicker({
 
 // ─── Custom Bubble ────────────────────────────────────────────────────────────
 
-function CustomBubble(props: BubbleProps<IMessage> & { extraData: { isDark: boolean; accentColor: string; accentTextColor: string } }) {
+function CustomBubble(
+  props: BubbleProps<IMessage> & {
+    extraData: {
+      isDark: boolean;
+      accentColor: string;
+      accentTextColor: string;
+      onLongPress?: (event: any, message: IMessage) => void;
+    };
+  }
+) {
   const isDark = props.extraData?.isDark ?? false;
   const accentColor = props.extraData?.accentColor ?? (isDark ? '#fff' : '#000');
   const accentTextColor = props.extraData?.accentTextColor ?? (isDark ? '#000' : '#fff');
   const currentMessage = props.currentMessage as any;
+  const onLongPress = props.extraData?.onLongPress;
 
   // Document message - custom render
   if (currentMessage?.document) {
@@ -196,11 +219,15 @@ function CustomBubble(props: BubbleProps<IMessage> & { extraData: { isDark: bool
         activeOpacity={0.7}
         onPress={() => {
           if (doc.url) {
-            Linking.openURL(doc.url).catch(() =>
-              Alert.alert('Error', 'Could not open file')
-            );
+            Linking.openURL(doc.url).catch(() => Alert.alert('Error', 'Could not open file'));
           }
         }}
+        onLongPress={(event) => {
+          if (onLongPress && currentMessage) {
+            onLongPress(event, currentMessage);
+          }
+        }}
+        delayLongPress={500}
         style={{
           backgroundColor: isMe ? accentColor : isDark ? '#1a1a1a' : '#fff',
           borderRadius: 16,
@@ -219,8 +246,12 @@ function CustomBubble(props: BubbleProps<IMessage> & { extraData: { isDark: bool
               height: 40,
               borderRadius: 10,
               backgroundColor: isMe
-                ? accentTextColor === '#fff' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'
-                : isDark ? '#252525' : '#f5f5f5',
+                ? accentTextColor === '#fff'
+                  ? 'rgba(255,255,255,0.15)'
+                  : 'rgba(0,0,0,0.15)'
+                : isDark
+                  ? '#252525'
+                  : '#f5f5f5',
               alignItems: 'center',
               justifyContent: 'center',
               marginRight: 10,
@@ -228,9 +259,7 @@ function CustomBubble(props: BubbleProps<IMessage> & { extraData: { isDark: bool
             <Feather
               name="file-text"
               size={18}
-              color={isMe
-                ? accentTextColor
-                : isDark ? '#888' : '#666'}
+              color={isMe ? accentTextColor : isDark ? '#888' : '#666'}
             />
           </View>
           <View style={{ flex: 1 }}>
@@ -249,8 +278,12 @@ function CustomBubble(props: BubbleProps<IMessage> & { extraData: { isDark: bool
                   fontSize: 11,
                   marginTop: 2,
                   color: isMe
-                    ? accentTextColor === '#fff' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'
-                    : isDark ? '#666' : '#999',
+                    ? accentTextColor === '#fff'
+                      ? 'rgba(255,255,255,0.5)'
+                      : 'rgba(0,0,0,0.5)'
+                    : isDark
+                      ? '#666'
+                      : '#999',
                 }}>
                 {fileSizeStr}
               </Text>
@@ -259,9 +292,15 @@ function CustomBubble(props: BubbleProps<IMessage> & { extraData: { isDark: bool
           <Feather
             name="download"
             size={16}
-            color={isMe
-              ? accentTextColor === '#fff' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'
-              : isDark ? '#555' : '#999'}
+            color={
+              isMe
+                ? accentTextColor === '#fff'
+                  ? 'rgba(255,255,255,0.5)'
+                  : 'rgba(0,0,0,0.5)'
+                : isDark
+                  ? '#555'
+                  : '#999'
+            }
             style={{ marginLeft: 8 }}
           />
         </View>
@@ -366,7 +405,11 @@ function CustomDay(props: DayProps & { extraData: { isDark: boolean } }) {
 
 // ─── Custom Time ──────────────────────────────────────────────────────────────
 
-function CustomTime(props: TimeProps<IMessage> & { extraData: { isDark: boolean; accentColor: string; accentTextColor: string } }) {
+function CustomTime(
+  props: TimeProps<IMessage> & {
+    extraData: { isDark: boolean; accentColor: string; accentTextColor: string };
+  }
+) {
   const isDark = props.extraData?.isDark ?? false;
   const accentColor = props.extraData?.accentColor ?? (isDark ? '#fff' : '#000');
   const accentTextColor = props.extraData?.accentTextColor ?? (isDark ? '#000' : '#fff');
@@ -376,19 +419,20 @@ function CustomTime(props: TimeProps<IMessage> & { extraData: { isDark: boolean;
   // Determine the status icon to show
   const getStatusIcon = () => {
     if (!isMe) return null;
-    
-    // Read by other person - blue double check
+
+    // Read by other person - blue check-circle (or white for colored themes)
     if (currentMessage?.readByOther) {
-      return (
-        <Feather
-          name="check-circle"
-          size={11}
-          color={accentColor}
-          style={{ marginLeft: 3 }}
-        />
-      );
+      // Use blue for default/black/white themes, white for colored themes
+      const isDefaultTheme =
+        accentColor === '#1a1a1a' ||
+        accentColor === '#ebebeb' ||
+        accentColor === '#000' ||
+        accentColor === '#fff';
+      const readColor = isDefaultTheme ? '#3b82f6' : '#fff';
+
+      return <Feather name="check-circle" size={12} color={readColor} style={{ marginLeft: 3 }} />;
     }
-    
+
     // Sent but not read - single gray check
     if (currentMessage?.sent) {
       return (
@@ -400,7 +444,7 @@ function CustomTime(props: TimeProps<IMessage> & { extraData: { isDark: boolean;
         />
       );
     }
-    
+
     // Sending - clock icon
     return (
       <Feather
@@ -413,15 +457,26 @@ function CustomTime(props: TimeProps<IMessage> & { extraData: { isDark: boolean;
   };
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, marginBottom: 2, paddingHorizontal: 4 }}>
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 2,
+        marginBottom: 2,
+        paddingHorizontal: 4,
+      }}>
       {currentMessage?.edited && (
         <Text
           style={{
             fontSize: 10,
             fontStyle: 'italic',
             color: isMe
-              ? accentTextColor === '#fff' ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'
-              : isDark ? '#555' : '#bbb',
+              ? accentTextColor === '#fff'
+                ? 'rgba(255,255,255,0.4)'
+                : 'rgba(0,0,0,0.4)'
+              : isDark
+                ? '#555'
+                : '#bbb',
             marginRight: 4,
           }}>
           edited
@@ -447,7 +502,11 @@ function CustomTime(props: TimeProps<IMessage> & { extraData: { isDark: boolean;
 
 // ─── Custom Send Button ───────────────────────────────────────────────────────
 
-function CustomSend(props: SendProps<IMessage> & { extraData: { isDark: boolean; accentColor: string; accentTextColor: string } }) {
+function CustomSend(
+  props: SendProps<IMessage> & {
+    extraData: { isDark: boolean; accentColor: string; accentTextColor: string };
+  }
+) {
   const isDark = props.extraData?.isDark ?? false;
   const accentColor = props.extraData?.accentColor ?? (isDark ? '#fff' : '#000');
   const accentTextColor = props.extraData?.accentTextColor ?? (isDark ? '#000' : '#fff');
@@ -482,21 +541,346 @@ function CustomSend(props: SendProps<IMessage> & { extraData: { isDark: boolean;
   );
 }
 
+// ─── Message Context Menu ─────────────────────────────────────────────────────
+
+function MessageContextMenu({
+  visible,
+  x,
+  y,
+  onDelete,
+  onClose,
+  isDark,
+}: {
+  visible: boolean;
+  x: number;
+  y: number;
+  onDelete: () => void;
+  onClose: () => void;
+  isDark: boolean;
+}) {
+  if (!visible) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.4)',
+        }}
+        onPress={onClose}>
+        <View
+          style={{
+            position: 'absolute',
+            top: y,
+            left: x,
+            minWidth: 140,
+            backgroundColor: isDark ? '#1a1a1a' : '#fff',
+            borderRadius: 12,
+            paddingVertical: 6,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 8,
+          }}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              onClose();
+              setTimeout(onDelete, 100);
+            }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+            }}>
+            <Feather name="trash-2" size={18} color="#ef4444" />
+            <Text
+              style={{
+                fontSize: 15,
+                fontWeight: '500',
+                color: '#ef4444',
+                marginLeft: 12,
+              }}>
+              Delete
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// ─── Image Context Menu ───────────────────────────────────────────────────────
+
+function ImageContextMenu({
+  visible,
+  x,
+  y,
+  onSave,
+  onView,
+  onClose,
+  isDark,
+}: {
+  visible: boolean;
+  x: number;
+  y: number;
+  onSave: () => void;
+  onView: () => void;
+  onClose: () => void;
+  isDark: boolean;
+}) {
+  if (!visible) return null;
+
+  const menuOptions = [
+    { icon: 'eye', label: 'View', onPress: onView },
+    { icon: 'download', label: 'Save', onPress: onSave },
+  ];
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.4)',
+        }}
+        onPress={onClose}>
+        <View
+          style={{
+            position: 'absolute',
+            top: y,
+            left: x,
+            minWidth: 140,
+            backgroundColor: isDark ? '#1a1a1a' : '#fff',
+            borderRadius: 12,
+            paddingVertical: 6,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 8,
+          }}>
+          {menuOptions.map((option, index) => (
+            <TouchableOpacity
+              key={option.label}
+              activeOpacity={0.7}
+              onPress={() => {
+                onClose();
+                setTimeout(option.onPress, 100);
+              }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                borderBottomWidth: index < menuOptions.length - 1 ? 1 : 0,
+                borderBottomColor: isDark ? '#252525' : '#f0f0f0',
+              }}>
+              <Feather name={option.icon as any} size={18} color={isDark ? '#e5e5e5' : '#1a1a1a'} />
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontWeight: '500',
+                  color: isDark ? '#e5e5e5' : '#1a1a1a',
+                  marginLeft: 12,
+                }}>
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// ─── Image Preview Modal ──────────────────────────────────────────────────────
+
+function ImagePreviewModal({
+  visible,
+  imageUri,
+  onClose,
+  onSave,
+}: {
+  visible: boolean;
+  imageUri: string | null;
+  onClose: () => void;
+  onSave: () => void;
+  isDark: boolean;
+}) {
+  if (!imageUri) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.95)',
+        }}>
+        {/* Header */}
+        <SafeAreaView edges={['top']}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+            }}>
+            <TouchableOpacity
+              onPress={onClose}
+              activeOpacity={0.7}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <Feather name="x" size={24} color="#fff" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={onSave}
+              activeOpacity={0.7}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                borderRadius: 20,
+                backgroundColor: 'rgba(255,255,255,0.1)',
+              }}>
+              <Feather name="download" size={18} color="#fff" />
+              <Text
+                style={{
+                  color: '#fff',
+                  fontSize: 14,
+                  fontWeight: '600',
+                  marginLeft: 8,
+                }}>
+                Save
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+
+        {/* Image */}
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+          <Image
+            source={{ uri: imageUri }}
+            style={{
+              width: SCREEN_WIDTH,
+              height: SCREEN_HEIGHT * 0.7,
+            }}
+            resizeMode="contain"
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Custom Message Image ─────────────────────────────────────────────────────
 
 function CustomMessageImage(props: any) {
+  const [showPreview, setShowPreview] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const isDark = props.extraData?.isDark ?? false;
+
+  const handleSaveImage = async () => {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'Please allow access to your photo library to save images.'
+        );
+        return;
+      }
+
+      const imageUri = props.currentMessage.image;
+      const timestamp = Date.now();
+      const file = new File(Paths.cache, `image_${timestamp}.jpg`);
+
+      // Download image to cache
+      const response = await fetch(imageUri);
+      const arrayBuffer = await response.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      await file.write(uint8Array);
+
+      // Save to media library
+      await MediaLibrary.createAssetAsync(file.uri);
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Success', 'Image saved to gallery');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to save image';
+      console.error('[Chat] Save image error:', message);
+      Alert.alert('Error', message);
+    }
+  };
+
+  const handleLongPress = (event: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    // Get touch position
+    const { pageX, pageY } = event.nativeEvent;
+
+    // Calculate menu position (offset to appear next to the image)
+    const menuX = Math.min(pageX + 10, SCREEN_WIDTH - 160);
+    const menuY = Math.max(pageY - 50, 100);
+
+    setMenuPosition({ x: menuX, y: menuY });
+    setShowMenu(true);
+  };
+
   return (
-    <View style={{ borderRadius: 12, overflow: 'hidden', margin: 3 }}>
-      <Image
-        source={{ uri: props.currentMessage.image }}
-        style={{
-          width: 200,
-          height: 200,
-          borderRadius: 12,
-        }}
-        resizeMode="cover"
+    <>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => setShowPreview(true)}
+        onLongPress={handleLongPress}
+        delayLongPress={500}>
+        <View style={{ borderRadius: 12, overflow: 'hidden', margin: 3 }}>
+          <Image
+            source={{ uri: props.currentMessage.image }}
+            style={{
+              width: 200,
+              height: 200,
+              borderRadius: 12,
+            }}
+            resizeMode="cover"
+          />
+        </View>
+      </TouchableOpacity>
+
+      <ImageContextMenu
+        visible={showMenu}
+        x={menuPosition.x}
+        y={menuPosition.y}
+        onSave={handleSaveImage}
+        onView={() => setShowPreview(true)}
+        onClose={() => setShowMenu(false)}
+        isDark={isDark}
       />
-    </View>
+
+      <ImagePreviewModal
+        visible={showPreview}
+        imageUri={props.currentMessage.image}
+        onClose={() => setShowPreview(false)}
+        onSave={handleSaveImage}
+        isDark={isDark}
+      />
+    </>
   );
 }
 
@@ -546,38 +930,162 @@ function TypingFooter({ isDark, name }: { isDark: boolean; name: string }) {
   );
 }
 
-// ─── Attachment Action Sheet ──────────────────────────────────────────────────
+// ─── Search Results Overlay ───────────────────────────────────────────────────
 
-function showAttachmentOptions(
-  isDark: boolean,
-  onCamera: () => void,
-  onGallery: () => void,
-  onDocument: () => void
-) {
-  if (Platform.OS === 'ios') {
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        options: ['Cancel', 'Take Photo', 'Photo Library', 'Send File'],
-        cancelButtonIndex: 0,
-      },
-      (buttonIndex) => {
-        if (buttonIndex === 1) onCamera();
-        else if (buttonIndex === 2) onGallery();
-        else if (buttonIndex === 3) onDocument();
-      }
+interface SearchResult {
+  id: string;
+  text: string;
+  senderName: string;
+  timestamp: Date;
+  isMe: boolean;
+}
+
+function SearchResultsOverlay({
+  visible,
+  query,
+  results,
+  isDark,
+  accentColor,
+  onClose,
+}: {
+  visible: boolean;
+  query: string;
+  results: SearchResult[];
+  isDark: boolean;
+  accentColor: string;
+  onClose: () => void;
+}) {
+  if (!visible || !query.trim()) return null;
+
+  const highlightMatch = (text: string, searchQuery: string) => {
+    if (!searchQuery.trim()) return <Text>{text}</Text>;
+    const parts = text.split(new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+    return (
+      <Text>
+        {parts.map((part, i) =>
+          part.toLowerCase() === searchQuery.toLowerCase() ? (
+            <Text key={i} style={{ backgroundColor: `${accentColor}40`, fontWeight: '700' }}>
+              {part}
+            </Text>
+          ) : (
+            <Text key={i}>{part}</Text>
+          )
+        )}
+      </Text>
     );
-  } else {
-    Alert.alert(
-      'Send Attachment',
-      undefined,
-      [
-        { text: 'Take Photo', onPress: onCamera },
-        { text: 'Photo Library', onPress: onGallery },
-        { text: 'Send File', onPress: onDocument },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
-  }
+  };
+
+  const formatTime = (date: Date) => {
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (diffDays === 1) {
+      return 'Yesterday';
+    } else if (diffDays < 7) {
+      return date.toLocaleDateString([], { weekday: 'short' });
+    }
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: isDark ? '#000' : '#f9f9f9',
+        zIndex: 50,
+      }}>
+      {results.length === 0 ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <View
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
+              marginBottom: 12,
+            }}>
+            <Feather name="search" size={24} color={isDark ? '#444' : '#ccc'} />
+          </View>
+          <Text
+            style={{
+              fontSize: 15,
+              fontWeight: '600',
+              color: isDark ? '#555' : '#999',
+            }}>
+            No messages found
+          </Text>
+          <Text
+            style={{
+              fontSize: 13,
+              marginTop: 4,
+              color: isDark ? '#444' : '#bbb',
+            }}>
+            Try a different search term
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={results}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingVertical: 8 }}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={onClose}
+              style={{
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                borderBottomWidth: 1,
+                borderBottomColor: isDark ? '#1a1a1a' : '#f0f0f0',
+              }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '600',
+                    color: item.isMe ? accentColor : (isDark ? '#e5e5e5' : '#1a1a1a'),
+                  }}>
+                  {item.isMe ? 'You' : item.senderName}
+                </Text>
+                <Text style={{ fontSize: 11, color: isDark ? '#555' : '#aaa' }}>
+                  {formatTime(item.timestamp)}
+                </Text>
+              </View>
+              <Text
+                numberOfLines={2}
+                style={{
+                  fontSize: 14,
+                  lineHeight: 20,
+                  color: isDark ? '#aaa' : '#555',
+                }}>
+                {highlightMatch(item.text, query)}
+              </Text>
+            </TouchableOpacity>
+          )}
+          ListHeaderComponent={
+            <Text
+              style={{
+                paddingHorizontal: 16,
+                paddingBottom: 8,
+                fontSize: 12,
+                fontWeight: '600',
+                color: isDark ? '#555' : '#aaa',
+              }}>
+              {results.length} result{results.length !== 1 ? 's' : ''} found
+            </Text>
+          }
+        />
+      )}
+    </View>
+  );
 }
 
 // ─── Main Conversation Screen ─────────────────────────────────────────────────
@@ -595,24 +1103,29 @@ export default function ChatConversationScreen() {
 
   const {
     messages,
-    activeChat,
     otherParticipant,
     otherPresence,
     isOtherTyping,
     loadingMessages,
-    sendingMessage,
     hasMoreMessages,
     userId,
     sendMessage,
     sendImage,
     sendDocument,
     loadMore,
-    onTyping,
     deleteMessage,
   } = useConversation(chatId);
 
   const [isUploading, setIsUploading] = useState(false);
   const [showAttachmentPicker, setShowAttachmentPicker] = useState(false);
+  const [showMessageMenu, setShowMessageMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [selectedMessage, setSelectedMessage] = useState<IMessage | null>(null);
+
+  // Search state
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<TextInput>(null);
 
   // Track keyboard visibility
   useEffect(() => {
@@ -632,9 +1145,7 @@ export default function ChatConversationScreen() {
   }, []);
 
   // Calculate conditional bottom padding
-  const bottomPadding = isKeyboardVisible
-    ? Math.max(insets.bottom * 0.4, 8)
-    : insets.bottom;
+  const bottomPadding = isKeyboardVisible ? Math.max(insets.bottom * 0.4, 8) : insets.bottom;
 
   // Online status text
   const statusText = useMemo(() => {
@@ -644,7 +1155,58 @@ export default function ChatConversationScreen() {
       return `Last seen ${formatRelativeTime(otherPresence.lastSeen.toDate())}`;
     }
     return '';
-  }, [isOtherTyping, otherPresence]);
+  }, [isOtherTyping, otherPresence?.isOnline, otherPresence?.lastSeen]);
+
+  // Search results
+  const searchResults: SearchResult[] = useMemo(() => {
+    if (!searchQuery.trim() || !userId) return [];
+
+    const q = searchQuery.toLowerCase();
+    return messages
+      .filter((msg) => {
+        const text = msg.text?.toLowerCase() || '';
+        return text.includes(q) && !(msg as any).deleted;
+      })
+      .map((msg) => ({
+        id: msg._id as string,
+        text: msg.text || '',
+        senderName: msg.user?.name || 'Unknown',
+        timestamp: msg.createdAt instanceof Date ? msg.createdAt : new Date(msg.createdAt),
+        isMe: msg.user?._id === userId,
+      }));
+  }, [searchQuery, messages, userId]);
+
+  // Navigate to profile
+  const handleOpenProfile = useCallback(() => {
+    if (!otherParticipant || !chatId) return;
+    router.push({
+      pathname: '/chat/chat-profile',
+      params: {
+        chatId,
+        participantId: otherParticipant.uid,
+        participantName: otherParticipant.displayName,
+        participantRole: otherParticipant.role,
+        participantPhoto: otherParticipant.photoURL || '',
+      },
+    });
+  }, [otherParticipant, chatId, router]);
+
+  // Toggle search
+  const handleToggleSearch = useCallback(() => {
+    setIsSearchActive((prev) => {
+      if (!prev) {
+        setTimeout(() => searchInputRef.current?.focus(), 100);
+      } else {
+        setSearchQuery('');
+      }
+      return !prev;
+    });
+  }, []);
+
+  const handleCloseSearch = useCallback(() => {
+    setIsSearchActive(false);
+    setSearchQuery('');
+  }, []);
 
   // Handle sending text messages via GiftedChat
   const onSend = useCallback(
@@ -657,17 +1219,73 @@ export default function ChatConversationScreen() {
     [sendMessage]
   );
 
+  // Handle long press on message
+  const handleLongPress = useCallback(
+    (event: any, currentMessage?: IMessage) => {
+      console.log('[Chat] handleLongPress called', { hasMessage: !!currentMessage, userId });
+      if (!currentMessage || !userId) return;
+      const msg = currentMessage as IMessage & { deleted?: boolean };
+      const isMyMessage = msg.user._id === userId;
+      const isDeleted = msg.deleted;
+
+      console.log('[Chat] Message check', { isMyMessage, isDeleted, messageId: msg._id });
+
+      // Only show menu for own messages that aren't deleted
+      if (!isMyMessage || isDeleted) {
+        console.log('[Chat] Skipping menu - not my message or deleted');
+        return;
+      }
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      // Get touch position from the event
+      const { pageX, pageY } = event?.nativeEvent || { pageX: SCREEN_WIDTH / 2, pageY: 200 };
+
+      console.log('[Chat] Showing menu at', { pageX, pageY });
+
+      // Calculate menu position (offset to appear next to the message)
+      const menuX = Math.min(pageX + 10, SCREEN_WIDTH - 160);
+      const menuY = Math.max(pageY - 50, 100);
+
+      setMenuPosition({ x: menuX, y: menuY });
+      setSelectedMessage(msg);
+      setShowMessageMenu(true);
+    },
+    [userId]
+  );
+
+  const handleDeleteMessage = useCallback(() => {
+    if (!selectedMessage) return;
+    setShowMessageMenu(false);
+
+    Alert.alert('Delete Message', 'This message will be deleted for everyone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          deleteMessage(selectedMessage._id as string);
+          setSelectedMessage(null);
+        },
+      },
+    ]);
+  }, [selectedMessage, deleteMessage]);
+
   // Pick image from gallery
   const handlePickImage = useCallback(async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please allow access to your photo library to send images.');
+        Alert.alert(
+          'Permission Required',
+          'Please allow access to your photo library to send images.'
+        );
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: false,
         allowsMultipleSelection: false,
         quality: 0.8,
@@ -700,7 +1318,7 @@ export default function ChatConversationScreen() {
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: false,
         quality: 0.8,
         exif: false,
@@ -749,50 +1367,6 @@ export default function ChatConversationScreen() {
     }
   }, [sendDocument]);
 
-  // Handle long press on message for delete
-  const handleLongPress = useCallback(
-    (_context: unknown, currentMessage?: unknown) => {
-      const msg = currentMessage as IMessage & { deleted?: boolean } | undefined;
-      if (!msg || !userId) return;
-      const isMyMessage = msg.user._id === userId;
-      const isDeleted = msg.deleted;
-
-      const options: any[] = [
-        ...(isMyMessage && !isDeleted
-          ? [
-              {
-                text: 'Delete',
-                style: 'destructive' as const,
-                onPress: () => {
-                  Alert.alert(
-                    'Delete Message',
-                    'This message will be deleted for everyone.',
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      {
-                        text: 'Delete',
-                        style: 'destructive',
-                        onPress: () => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                          deleteMessage(msg._id as string);
-                        },
-                      },
-                    ]
-                  );
-                },
-              },
-            ]
-          : []),
-        { text: 'Cancel', style: 'cancel' as const },
-      ];
-
-      if (options.length > 1) {
-        Alert.alert('Message', undefined, options);
-      }
-    },
-    [userId, deleteMessage]
-  );
-
   // Attachment button press
   const handleAttachmentPress = useCallback(() => {
     if (Platform.OS === 'ios') {
@@ -817,11 +1391,14 @@ export default function ChatConversationScreen() {
   if (!chatId) {
     return (
       <SafeAreaView
-        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? '#000' : '#f9f9f9'}}
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: isDark ? '#000' : '#f9f9f9',
+        }}
         edges={['top']}>
-        <Text style={{ color: isDark ? '#555' : '#aaa' }}>
-          No chat selected
-        </Text>
+        <Text style={{ color: isDark ? '#555' : '#aaa' }}>No chat selected</Text>
       </SafeAreaView>
     );
   }
@@ -829,9 +1406,7 @@ export default function ChatConversationScreen() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: isDark ? '#000' : '#fff' }}
-      edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#000' : '#fff' }} edges={['top']}>
       {/* Attachment Picker Modal */}
       <AttachmentPicker
         visible={showAttachmentPicker}
@@ -841,6 +1416,19 @@ export default function ChatConversationScreen() {
         onDocument={handlePickDocument}
         isDark={isDark}
         accentColor={getAccentColor()}
+      />
+
+      {/* Message Context Menu */}
+      <MessageContextMenu
+        visible={showMessageMenu}
+        x={menuPosition.x}
+        y={menuPosition.y}
+        onDelete={handleDeleteMessage}
+        onClose={() => {
+          setShowMessageMenu(false);
+          setSelectedMessage(null);
+        }}
+        isDark={isDark}
       />
 
       {/* Header */}
@@ -854,123 +1442,213 @@ export default function ChatConversationScreen() {
           borderBottomWidth: 1,
           borderBottomColor: isDark ? '#1e1e1e' : '#f0f0f0',
         }}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{
-            marginRight: 12,
-            padding: 8,
-            borderRadius: 20,
-            backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
-          }}
-          activeOpacity={0.7}>
-          <ArrowLeft color={isDark ? '#fff' : '#000'} size={20} />
-        </TouchableOpacity>
-
-        {/* Avatar */}
-        <View style={{ position: 'relative' }}>
-          <View
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: 21,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
-            }}>
-            <Text
+        {isSearchActive ? (
+          /* ── Search Bar Mode ── */
+          <>
+            <TouchableOpacity
+              onPress={handleCloseSearch}
               style={{
-                fontSize: 14,
-                fontWeight: '700',
-                color: isDark ? '#fff' : '#333',
-              }}>
-              {otherParticipant
-                ? getInitials(otherParticipant.displayName)
-                : '?'}
-            </Text>
-          </View>
-          {otherPresence?.isOnline && (
+                marginRight: 12,
+                padding: 8,
+                borderRadius: 20,
+                backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
+              }}
+              activeOpacity={0.7}>
+              <ArrowLeft color={isDark ? '#fff' : '#000'} size={20} />
+            </TouchableOpacity>
             <View
               style={{
-                position: 'absolute',
-                bottom: -1,
-                right: -1,
-                width: 13,
-                height: 13,
-                borderRadius: 6.5,
-                backgroundColor: '#22c55e',
-                borderWidth: 2.5,
-                borderColor: isDark ? '#000' : '#fff',
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
+                borderRadius: 22,
+                paddingHorizontal: 14,
+                height: 40,
+                borderWidth: 1,
+                borderColor: isDark ? '#252525' : '#eee',
+              }}>
+              <Feather
+                name="search"
+                size={16}
+                color={isDark ? '#666' : '#aaa'}
+                style={{ marginRight: 8 }}
+              />
+              <TextInput
+                ref={searchInputRef}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search messages..."
+                placeholderTextColor={isDark ? '#555' : '#aaa'}
+                style={{
+                  flex: 1,
+                  fontSize: 15,
+                  color: isDark ? '#fff' : '#1a1a1a',
+                  paddingVertical: 0,
+                }}
+                autoFocus
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
+                  <Feather name="x" size={16} color={isDark ? '#666' : '#aaa'} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </>
+        ) : (
+          /* ── Normal Header Mode ── */
+          <>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={{
+                marginRight: 12,
+                padding: 8,
+                borderRadius: 20,
+                backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
               }}
-            />
-          )}
-        </View>
+              activeOpacity={0.7}>
+              <ArrowLeft color={isDark ? '#fff' : '#000'} size={20} />
+            </TouchableOpacity>
 
-        {/* Name & Status */}
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: '700',
-              color: isDark ? '#fff' : '#1a1a1a',
-            }}
-            numberOfLines={1}>
-            {otherParticipant?.displayName || 'Chat'}
-          </Text>
-          {statusText ? (
-            <Text
-              style={{
-                fontSize: 12,
-                marginTop: 1,
-                color: isOtherTyping
-                  ? '#22c55e'
-                  : otherPresence?.isOnline
-                    ? '#22c55e'
-                    : isDark ? '#555' : '#aaa',
-                fontWeight: isOtherTyping || otherPresence?.isOnline ? '600' : '400',
-              }}>
-              {statusText}
-            </Text>
-          ) : null}
-        </View>
+            {/* Tappable Avatar + Name */}
+            <TouchableOpacity
+              onPress={handleOpenProfile}
+              activeOpacity={0.7}
+              style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+              {/* Avatar */}
+              <View style={{ position: 'relative' }}>
+                {otherParticipant?.photoURL ? (
+                  <Image
+                    source={{ uri: otherParticipant.photoURL }}
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 21,
+                    }}
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 21,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
+                    }}>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: '700',
+                        color: isDark ? '#fff' : '#333',
+                      }}>
+                      {otherParticipant ? getInitials(otherParticipant.displayName) : '?'}
+                    </Text>
+                  </View>
+                )}
+                {otherPresence?.isOnline && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      bottom: -1,
+                      right: -1,
+                      width: 13,
+                      height: 13,
+                      borderRadius: 6.5,
+                      backgroundColor: '#22c55e',
+                      borderWidth: 2.5,
+                      borderColor: isDark ? '#000' : '#fff',
+                    }}
+                  />
+                )}
+              </View>
 
-        {/* Role badge */}
-        {otherParticipant?.role === 'agent' && (
-          <View
-            style={{
-              paddingHorizontal: 10,
-              paddingVertical: 5,
-              borderRadius: 20,
-              backgroundColor: isDark ? 'rgba(59,130,246,0.12)' : '#eff6ff',
-            }}>
-            <Text
+              {/* Name & Status */}
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: '700',
+                    color: isDark ? '#fff' : '#1a1a1a',
+                  }}
+                  numberOfLines={1}>
+                  {otherParticipant?.displayName || 'Chat'}
+                </Text>
+                {statusText ? (
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      marginTop: 1,
+                      color: isOtherTyping
+                        ? '#22c55e'
+                        : otherPresence?.isOnline
+                          ? '#22c55e'
+                          : isDark
+                            ? '#555'
+                            : '#aaa',
+                      fontWeight: isOtherTyping || otherPresence?.isOnline ? '600' : '400',
+                    }}>
+                    {statusText}
+                  </Text>
+                ) : null}
+              </View>
+            </TouchableOpacity>
+
+            {/* Search Icon */}
+            <TouchableOpacity
+              onPress={handleToggleSearch}
               style={{
-                fontSize: 10,
-                fontWeight: '700',
-                letterSpacing: 0.5,
-                color: isDark ? '#60a5fa' : '#2563eb',
-              }}>
-              AGENT
-            </Text>
-          </View>
-        )}
-        {otherParticipant?.role === 'admin' && (
-          <View
-            style={{
-              paddingHorizontal: 10,
-              paddingVertical: 5,
-              borderRadius: 20,
-              backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : '#fffbeb',
-            }}>
-            <Text
-              style={{
-                fontSize: 10,
-                fontWeight: '700',
-                letterSpacing: 0.5,
-                color: isDark ? '#fbbf24' : '#d97706',
-              }}>
-              ADMIN
-            </Text>
-          </View>
+                padding: 8,
+                borderRadius: 20,
+                backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
+              }}
+              activeOpacity={0.7}>
+              <Feather name="search" size={18} color={isDark ? '#aaa' : '#666'} />
+            </TouchableOpacity>
+
+            {/* Role badge */}
+            {otherParticipant?.role === 'agent' && (
+              <View
+                style={{
+                  marginLeft: 8,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                  borderRadius: 20,
+                  backgroundColor: isDark ? 'rgba(59,130,246,0.12)' : '#eff6ff',
+                }}>
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontWeight: '700',
+                    letterSpacing: 0.5,
+                    color: isDark ? '#60a5fa' : '#2563eb',
+                  }}>
+                  AGENT
+                </Text>
+              </View>
+            )}
+            {otherParticipant?.role === 'admin' && (
+              <View
+                style={{
+                  marginLeft: 8,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                  borderRadius: 20,
+                  backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : '#fffbeb',
+                }}>
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontWeight: '700',
+                    letterSpacing: 0.5,
+                    color: isDark ? '#fbbf24' : '#d97706',
+                  }}>
+                  ADMIN
+                </Text>
+              </View>
+            )}
+          </>
         )}
       </View>
 
@@ -1029,200 +1707,245 @@ export default function ChatConversationScreen() {
           </View>
         ) : (
           <GiftedChat
-          messages={messages}
-          onSend={onSend}
-          user={{
-            _id: userId || '',
-          }}
-          // Custom renders
-          renderBubble={(props) => <CustomBubble {...props} extraData={{ isDark, accentColor: getButtonBg(), accentTextColor: getButtonText() }} />}
-          renderDay={(props) => <CustomDay {...props} extraData={{ isDark }} />}
-          renderTime={(props) => <CustomTime {...props} extraData={{ isDark, accentColor: getAccentColor(), accentTextColor: getButtonText() }} />}
-          
-          renderMessageImage={(props) => <CustomMessageImage {...props} />}
-          renderSend={(props) => <CustomSend {...props} extraData={{ isDark, accentColor: getButtonBg(), accentTextColor: getButtonText() }} />}
-          // Custom input toolbar
-          renderInputToolbar={(props) => (
-            <InputToolbar
-              {...props}
-              containerStyle={{
-                backgroundColor: isDark ? '#000' : '#fff',
-                borderTopWidth: 1,
-                borderTopColor: isDark ? '#1e1e1e' : '#f0f0f0',
-                paddingTop: 6,
-                paddingHorizontal: 4,
-                paddingBottom: bottomPadding || 6
-              }}
-              primaryStyle={{
-                alignItems: 'center',
-              }}
-            />
-          )}
-          // Custom composer
-          renderComposer={(props) => (
-            <Composer
-              {...props}
-              textInputProps={{
-                ...(props.textInputProps || {}),
-                placeholder: 'Type a message...',
-                placeholderTextColor: isDark ? '#555' : '#aaa',
-                style: {
-                  backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
-                  borderRadius: 22,
-                  paddingHorizontal: 16,
-                  paddingTop: Platform.OS === 'ios' ? 10 : 8,
-                  paddingBottom: Platform.OS === 'ios' ? 10 : 8,
-                  
-                  marginLeft: 4,
-                  marginRight: 4,
-                  fontSize: 15,
-                  lineHeight: 20,
-                  color: isDark ? '#fff' : '#1a1a1a',
-                  borderWidth: 1,
-                  borderColor: isDark ? '#252525' : '#eee',
-                  maxHeight: 100,
-                  flex: 1,
-                },
-              }}
-            />
-          )}
-          // Custom actions (attachment button)
-          renderActions={() => (
-            <TouchableOpacity
-              onPress={handleAttachmentPress}
-              activeOpacity={0.7}
-              style={{
-                width: 40,
-                height: 40,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginLeft: 8,
-                marginBottom: 4,
-              }}>
+            messages={messages}
+            onSend={onSend}
+            user={{
+              _id: userId || '',
+            }}
+            // Custom renders
+            renderBubble={(props) => (
+              <CustomBubble
+                {...props}
+                extraData={{
+                  isDark,
+                  accentColor: getButtonBg(),
+                  accentTextColor: getButtonText(),
+                  onLongPress: handleLongPress,
+                }}
+              />
+            )}
+            renderDay={(props) => <CustomDay {...props} extraData={{ isDark }} />}
+            renderTime={(props) => (
+              <CustomTime
+                {...props}
+                extraData={{
+                  isDark,
+                  accentColor: getAccentColor(),
+                  accentTextColor: getButtonText(),
+                }}
+              />
+            )}
+            renderMessageImage={(props) => <CustomMessageImage {...props} extraData={{ isDark }} />}
+            renderMessageText={(props) => (
+              <TouchableOpacity
+                activeOpacity={1}
+                onLongPress={(event) => {
+                  console.log('[Chat] Message text long press');
+                  if (props.currentMessage) {
+                    handleLongPress(event, props.currentMessage);
+                  }
+                }}
+                delayLongPress={500}>
+                <Text
+                  style={{
+                    color: props.position === 'right' ? getButtonText() : (isDark ? '#e5e5e5' : '#1a1a1a'),
+                    fontSize: 15,
+                    lineHeight: 21,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                  }}>
+                  {props.currentMessage?.text}
+                </Text>
+              </TouchableOpacity>
+            )}
+            renderSend={(props) => (
+              <CustomSend
+                {...props}
+                extraData={{ isDark, accentColor: getButtonBg(), accentTextColor: getButtonText() }}
+              />
+            )}
+            // Custom input toolbar
+            renderInputToolbar={(props) => (
+              <InputToolbar
+                {...props}
+                containerStyle={{
+                  backgroundColor: isDark ? '#000' : '#fff',
+                  borderTopWidth: 1,
+                  borderTopColor: isDark ? '#1e1e1e' : '#f0f0f0',
+                  paddingTop: 6,
+                  paddingHorizontal: 4,
+                  paddingBottom: bottomPadding || 6,
+                }}
+                primaryStyle={{
+                  alignItems: 'center',
+                }}
+              />
+            )}
+            // Custom composer
+            renderComposer={(props) => (
+              <Composer
+                {...props}
+                textInputProps={{
+                  ...(props.textInputProps || {}),
+                  placeholder: 'Type a message...',
+                  placeholderTextColor: isDark ? '#555' : '#aaa',
+                  style: {
+                    backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
+                    borderRadius: 22,
+                    paddingHorizontal: 16,
+                    paddingTop: Platform.OS === 'ios' ? 10 : 8,
+                    paddingBottom: Platform.OS === 'ios' ? 10 : 8,
+
+                    marginLeft: 4,
+                    marginRight: 4,
+                    fontSize: 15,
+                    lineHeight: 20,
+                    color: isDark ? '#fff' : '#1a1a1a',
+                    borderWidth: 1,
+                    borderColor: isDark ? '#252525' : '#eee',
+                    maxHeight: 100,
+                    flex: 1,
+                  },
+                }}
+              />
+            )}
+            // Custom actions (attachment button)
+            renderActions={() => (
+              <TouchableOpacity
+                onPress={handleAttachmentPress}
+                activeOpacity={0.7}
+                style={{
+                  width: 40,
+                  height: 40,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginLeft: 8,
+                  marginBottom: 4,
+                }}>
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: `${getAccentColor()}20`,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: 1,
+                    borderColor: `${getAccentColor()}30`,
+                  }}>
+                  <Feather name="plus" size={20} color={getAccentColor()} />
+                </View>
+              </TouchableOpacity>
+            )}
+            // Footer - typing indicator
+            renderChatFooter={() =>
+              isOtherTyping ? (
+                <TypingFooter isDark={isDark} name={otherParticipant?.displayName || 'User'} />
+              ) : null
+            }
+            // Load earlier
+            loadEarlierMessagesProps={{
+              isAvailable: hasMoreMessages && messages.length >= 30,
+              isLoading: loadingMessages,
+              onPress: loadMore,
+              wrapperStyle: {
+                backgroundColor: isDark ? '#141414' : '#f5f5f5',
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: isDark ? '#1e1e1e' : '#eee',
+                paddingVertical: 8,
+                paddingHorizontal: 20,
+              },
+              textStyle: {
+                color: isDark ? '#888' : '#666',
+                fontSize: 12,
+                fontWeight: '600',
+              },
+              activityIndicatorColor: isDark ? '#fff' : '#000',
+            }}
+            // Scroll to bottom
+            isScrollToBottomEnabled
+            scrollToBottomComponent={() => (
               <View
                 style={{
                   width: 36,
                   height: 36,
                   borderRadius: 18,
-                  backgroundColor: `${getAccentColor()}20`,
+                  backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderWidth: 1,
-                  borderColor: `${getAccentColor()}30`,
+                  borderColor: isDark ? '#252525' : '#eee',
                 }}>
-                <Feather name="plus" size={20} color={getAccentColor()} />
+                <Feather name="chevron-down" size={20} color={isDark ? '#888' : '#666'} />
               </View>
-            </TouchableOpacity>
-          )}
-          // Footer - typing indicator
-          renderChatFooter={() =>
-            isOtherTyping ? (
-              <TypingFooter
-                isDark={isDark}
-                name={otherParticipant?.displayName || 'User'}
-              />
-            ) : null
-          }
-          // Long press on message
-          onLongPressMessage={handleLongPress}
-          // Load earlier
-          loadEarlierMessagesProps={{
-            isAvailable: hasMoreMessages && messages.length >= 30,
-            isLoading: loadingMessages,
-            onPress: loadMore,
-            wrapperStyle: {
-              backgroundColor: isDark ? '#141414' : '#f5f5f5',
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: isDark ? '#1e1e1e' : '#eee',
-              paddingVertical: 8,
-              paddingHorizontal: 20,
-            },
-            textStyle: {
-              color: isDark ? '#888' : '#666',
-              fontSize: 12,
-              fontWeight: '600',
-            },
-            activityIndicatorColor: isDark ? '#fff' : '#000',
-          }}
-          // Scroll to bottom
-          isScrollToBottomEnabled
-          scrollToBottomComponent={() => (
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: isDark ? '#252525' : '#eee',
-              }}>
-              <Feather name="chevron-down" size={20} color={isDark ? '#888' : '#666'} />
-            </View>
-          )}
-          // Force send button always visible
-          isSendButtonAlwaysVisible
-          // List/container styling
-          listProps={{
-            style: {
-              backgroundColor: isDark ? '#000' : '#fafafa',
-            },
-            keyboardShouldPersistTaps: 'handled',
-          }}
-          maxComposerHeight={100}
-          minInputToolbarHeight={Platform.OS === 'ios' ? 44 : 56}
-          // Empty state — GiftedChat uses an inverted FlatList, so
-          // ListEmptyComponent renders upside-down. We rotate the
-          // wrapper 180deg to compensate.
-          renderChatEmpty={() => (
-            <View
-              style={{
-                flex: 1,
-                alignItems: 'center',
-                justifyContent: 'center',
-                transform: [{ rotate: '180deg' }],
-              }}>
+            )}
+            // Force send button always visible
+            isSendButtonAlwaysVisible
+            // List/container styling
+            listProps={{
+              style: {
+                backgroundColor: isDark ? '#000' : '#fafafa',
+              },
+              keyboardShouldPersistTaps: 'handled',
+            }}
+            maxComposerHeight={100}
+            minInputToolbarHeight={Platform.OS === 'ios' ? 44 : 56}
+            // Empty state — GiftedChat uses an inverted FlatList, so
+            // ListEmptyComponent renders upside-down. We rotate the
+            // wrapper 180deg to compensate.
+            renderChatEmpty={() => (
               <View
                 style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: 36,
+                  flex: 1,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: isDark ? '#141414' : '#f5f5f5',
-                  marginBottom: 16,
-                  borderWidth: 1,
-                  borderColor: isDark ? '#1e1e1e' : '#eee',
+                  transform: [{ rotate: '180deg' }],
                 }}>
-                <Feather
-                  name="message-circle"
-                  size={30}
-                  color={isDark ? '#333' : '#ccc'}
-                />
+                <View
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: 36,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: isDark ? '#141414' : '#f5f5f5',
+                    marginBottom: 16,
+                    borderWidth: 1,
+                    borderColor: isDark ? '#1e1e1e' : '#eee',
+                  }}>
+                  <Feather name="message-circle" size={30} color={isDark ? '#333' : '#ccc'} />
+                </View>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: '700',
+                    color: isDark ? '#555' : '#999',
+                    marginBottom: 4,
+                  }}>
+                  No messages yet
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: isDark ? '#444' : '#bbb',
+                    marginBottom: 16,
+                  }}>
+                  Say hello to start the conversation
+                </Text>
               </View>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: '700',
-                  color: isDark ? '#555' : '#999',
-                  marginBottom: 4,
-                }}>
-                No messages yet
-              </Text>
-              <Text
-                style={{
-                  fontSize: 13,
-                  color: isDark ? '#444' : '#bbb',
-                  marginBottom: 16,
-                }}>
-                Say hello to start the conversation
-              </Text>
-            </View>
-          )}
-        />
+            )}
+          />
         )}
+        {/* Search Results Overlay */}
+        <SearchResultsOverlay
+          visible={isSearchActive && searchQuery.trim().length > 0}
+          query={searchQuery}
+          results={searchResults}
+          isDark={isDark}
+          accentColor={getAccentColor()}
+          onClose={handleCloseSearch}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

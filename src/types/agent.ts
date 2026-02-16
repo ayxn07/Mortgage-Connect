@@ -27,6 +27,7 @@ export interface Agent extends User {
   services: AgentService[];
   location: string;
   whatsapp?: string;
+  isFeatured?: boolean; // Admin-controlled featured status
 }
 
 /** Featured agent card (subset for Home screen) */

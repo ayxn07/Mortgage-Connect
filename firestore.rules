@@ -25,6 +25,10 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
+      
+      // Additional validation: only admins can modify isFeatured field
+      allow update: if isAdmin() && 
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isFeatured', 'updatedAt']);
     }
     
     // User presence collection (for online status and typing indicators)

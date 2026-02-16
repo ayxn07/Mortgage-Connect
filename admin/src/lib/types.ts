@@ -37,6 +37,7 @@ export interface Agent extends User {
   services: AgentService[];
   location: string;
   whatsapp?: string;
+  isFeatured?: boolean;
 }
 
 // ============ Application Types ============
@@ -57,13 +58,15 @@ export interface ApplicantIdentity {
   dateOfBirth: string;
   gender: string;
   maritalStatus: string;
-  dependents: number;
-  emiratesId: string;
+  numberOfDependents: number;
+  emiratesIdNumber: string;
+  emiratesIdExpiry: string;
   passportNumber: string;
+  passportExpiry: string;
 }
 
 export interface ContactResidency {
-  mobile: string;
+  mobileNumber: string;
   email: string;
   currentAddress: string;
   emirate: string;
@@ -72,71 +75,79 @@ export interface ContactResidency {
 }
 
 export interface SalariedDetails {
-  companyName: string;
+  employerName: string;
+  employerIndustry: string;
   jobTitle: string;
-  monthlyBasicSalary: number;
-  monthlyAllowances: number;
-  totalMonthlySalary: number;
-  employmentDuration: number;
+  lengthOfServiceMonths: number;
+  monthlyGrossSalary: number;
+  monthlyNetSalary: number;
+  salariedEmploymentType: string;
   salaryTransferBank: string;
-  salaryCertificateAvailable: boolean;
 }
 
 export interface SelfEmployedDetails {
-  businessName: string;
-  businessType: string;
+  companyName: string;
   tradeLicenseNumber: string;
-  annualRevenue: number;
-  monthlyNetIncome: number;
-  yearsInBusiness: number;
+  companyAgeYears: number;
+  monthlyAverageIncome: number;
+  officeLocation: string;
+  ownershipPercentage: number;
 }
 
 export interface EmploymentIncome {
   employmentType: string;
-  salariedDetails?: SalariedDetails;
-  selfEmployedDetails?: SelfEmployedDetails;
+  salaried?: SalariedDetails;
+  selfEmployed?: SelfEmployedDetails;
 }
 
 export interface LoanObligation {
-  type: string;
-  monthlyEMI: number;
-  outstandingBalance: number;
-  remainingTenure: number;
+  id: string;
+  type: 'personal' | 'auto' | 'credit_card' | 'other';
+  label: string;
+  emiAmount: number;
 }
 
 export interface FinancialObligations {
-  existingLoans: LoanObligation[];
-  creditCardLimits: number;
+  hasExistingLoans: boolean;
+  loans: LoanObligation[];
+  creditCardsCount: number;
+  totalCreditCardLimit: number;
   totalMonthlyEMI: number;
 }
 
 export interface PropertyDetails {
+  propertyIdentified: boolean;
   propertyType: string;
-  developer: string;
+  propertyStatus: string;
+  developerName: string;
   projectName: string;
-  area: string;
-  propertyPrice: number;
-  propertySize: number;
-  bedrooms: number;
-  propertyReadiness: string;
+  locationArea: string;
+  purchasePrice: number;
+  expectedCompletionDate: string;
+  unitSizeSqft: number;
+  numberOfBedrooms: number;
+  parkingIncluded: boolean;
 }
 
 export interface MortgagePreferences {
   propertyValue: number;
-  downPaymentPercent: number;
   downPaymentAmount: number;
-  loanAmount: number;
-  loanTenure: number;
+  downPaymentPercent: number;
+  preferredLoanAmount: number;
+  loanTenureYears: number;
   interestType: string;
+  isFirstTimeBuyer: boolean;
 }
 
 export interface EligibilityResults {
-  isEligible: boolean;
   eligibleLoanAmount: number;
   estimatedEMI: number;
-  debtBurdenRatio: number;
-  ltvRatio: number;
-  interestRate: number;
+  dbrPercent: number;
+  ltvPercent: number;
+  approxRateMin: number;
+  approxRateMax: number;
+  eligibleBanksCount: number;
+  additionalDownPaymentRequired: number;
 }
 
 export interface UploadedDocument {
@@ -146,7 +157,7 @@ export interface UploadedDocument {
   fileSize: number;
   mimeType: string;
   downloadURL: string;
-  uploadedAt: Timestamp;
+  uploadedAt: string | Timestamp;
 }
 
 export interface DocumentUploads {
@@ -157,7 +168,7 @@ export interface ConsentDeclarations {
   aecbConsent: boolean;
   bankContactConsent: boolean;
   dataProcessingConsent: boolean;
-  accuracyDeclaration: boolean;
+  accuracyConfirmation: boolean;
   termsAccepted: boolean;
   consentDate?: Timestamp;
 }

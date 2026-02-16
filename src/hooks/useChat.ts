@@ -187,7 +187,7 @@ export function useConversation(chatId: string | undefined) {
 
     const unsub = watchPresence(otherParticipantId);
     return unsub;
-  }, [activeChat, userId]);
+  }, [activeChat, userId, watchPresence]);
 
   // Mark chat as read when messages update
   useEffect(() => {
