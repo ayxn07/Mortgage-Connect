@@ -46,6 +46,23 @@ export {
   calculateRentVsBuy,
 } from './helpers';
 
+// Sanitization & Security
+export {
+  stripHtml,
+  escapeHtml,
+  sanitizeText,
+  sanitizeEmail,
+  sanitizePhone,
+  sanitizeNumber,
+  sanitizeMessage,
+  sanitizeObject,
+  checkRateLimit,
+  resetRateLimit,
+  clearAllRateLimits,
+  containsProfanity,
+  filterProfanity,
+} from './sanitize';
+
 // Helper types (re-export for convenience)
 export type {
   Emirate,

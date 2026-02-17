@@ -2,72 +2,104 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Helper function to check if user is authenticated
+
+    // ─── Helper Functions ───────────────────────────────────────────────
+
     function isAuthenticated() {
       return request.auth != null;
     }
-    
-    // Helper function to check file size (max 10MB)
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isAssignedAgent(applicationId) {
+      return isAuthenticated() &&
+             firestore.get(/databases/(default)/documents/applications/$(applicationId)).data.agentId == request.auth.uid;
+    }
+
+    // Max file size: 10MB
     function isValidSize() {
       return request.resource.size < 10 * 1024 * 1024;
     }
-    
-    // Helper function to check file type
+
+    // Allowed file types
     function isValidFileType() {
       return request.resource.contentType.matches('image/.*') ||
              request.resource.contentType.matches('application/pdf') ||
              request.resource.contentType.matches('application/msword') ||
              request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.*');
     }
-    
-    // Application documents
+
+    // Image-only validation
+    function isImageType() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    // ─── User Profile Photos ────────────────────────────────────────────
+
+    match /users/{userId}/profile/{fileName} {
+      // Profile photos are publicly readable
+      allow read: if true;
+
+      // Only the owner can upload/update their own profile photo
+      allow write: if isOwner(userId) && isValidSize() && isImageType();
+    }
+
+    // ─── Application Documents ──────────────────────────────────────────
+
     match /applications/{userId}/{applicationId}/{document} {
-      // Users can upload their own documents
-      allow create: if isAuthenticated() && 
-                      request.auth.uid == userId && 
-                      isValidSize() && 
-                      isValidFileType();
-      
-      // Users can read their own documents
-      allow read: if isAuthenticated() && request.auth.uid == userId;
-      
-      // Users can delete their own documents
-      allow delete: if isAuthenticated() && request.auth.uid == userId;
+      // Owner can read their own documents
+      // Admin can read any documents
+      // Assigned agent can read documents for their assigned applications
+      allow read: if isOwner(userId) || isAdmin() || isAssignedAgent(applicationId);
+
+      // Only the owner can upload documents
+      allow create: if isOwner(userId) && isValidSize() && isValidFileType();
+
+      // Owner can update/replace their own documents
+      allow update: if isOwner(userId) && isValidSize() && isValidFileType();
+
+      // Owner and admins can delete documents
+      allow delete: if isOwner(userId) || isAdmin();
     }
-    
-    // Chat images and documents (mobile app path)
+
+    // ─── Chat Media (mobile app path) ───────────────────────────────────
+
     match /chat_media/{chatId}/{fileName} {
-      // Authenticated users can upload chat files
-      allow create: if isAuthenticated() && 
-                      isValidSize() && 
-                      isValidFileType();
-      
-      // Authenticated users can read chat files
+      // Authenticated users who are chat participants can read
       allow read: if isAuthenticated();
-      
-      // Users can delete their own chat files
-      allow delete: if isAuthenticated();
+
+      // Authenticated users can upload chat files with validation
+      allow create: if isAuthenticated() && isValidSize() && isValidFileType();
+
+      // Only admins can delete chat media
+      allow delete: if isAdmin();
     }
-    
-    // Chat images and documents (admin dashboard path)
+
+    // ─── Chat Media (admin dashboard path) ──────────────────────────────
+
     match /chats/{chatId}/{fileTimestamp}/{fileName} {
-      // Authenticated users can upload chat files
-      allow create: if isAuthenticated() && 
-                      isValidSize() && 
-                      isValidFileType();
-      
       // Authenticated users can read chat files
       allow read: if isAuthenticated();
-      
-      // Users can delete their own chat files
-      allow delete: if isAuthenticated();
+
+      // Authenticated users can upload chat files with validation
+      allow create: if isAuthenticated() && isValidSize() && isValidFileType();
+
+      // Only admins can delete chat media
+      allow delete: if isAdmin();
     }
-    
-    // Admin access (you can add admin check here if needed)
+
+    // ─── Default: Deny All ──────────────────────────────────────────────
+
     match /{allPaths=**} {
-      allow read: if false; // Deny by default, specific rules above
-      allow write: if false; // Deny by default, specific rules above
+      allow read: if false;
+      allow write: if false;
     }
   }
 }

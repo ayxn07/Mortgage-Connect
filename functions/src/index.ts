@@ -10,6 +10,15 @@ export { aiChat } from './aiChat';
 // Chat notification function
 export { sendChatNotification } from './sendChatNotification';
 
+// Application status change notification
+export { onApplicationStatusChange } from './onApplicationStatusChange';
+
+// Review received notification
+export { onReviewReceived } from './onReviewReceived';
+
+// Document upload request notification
+export { onDocumentUploadRequest } from './onDocumentUploadRequest';
+
 // Initialize Resend with API key
 const resend = new Resend('re_JaVHXqBR_refrubWTtTWxdhL3Anvoxn8n');
 

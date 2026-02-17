@@ -11,6 +11,8 @@ import { useAuthStore } from '@/src/store/authStore';
 import { seedTestAgents } from '@/src/services/seedAgents';
 import { configureGoogleSignIn } from '@/src/services/googleSignInConfig';
 import { useNotifications } from '@/src/hooks/useNotifications';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { OfflineBanner } from '@/components/OfflineBanner';
 
 // Register Notifee background event handler at module scope.
 // This must be imported before any React component renders so that
@@ -61,12 +63,14 @@ export default function RootLayout() {
   }, [initialized, user]);
 
   return (
-    <ThemeProvider>
-      <ThemeColorProvider>
-        <SafeAreaProvider>
-          <ThemeTransitionProvider>
-            <DynamicStatusBar />
-            <Stack
+    <ErrorBoundary>
+      <ThemeProvider>
+        <ThemeColorProvider>
+          <SafeAreaProvider>
+            <ThemeTransitionProvider>
+              <DynamicStatusBar />
+              <OfflineBanner />
+              <Stack
               screenOptions={{
                 headerShown: false,
                 contentStyle: { backgroundColor: '#000' },
@@ -221,5 +225,6 @@ export default function RootLayout() {
         </SafeAreaProvider>
       </ThemeColorProvider>
     </ThemeProvider>
+    </ErrorBoundary>
   );
 }

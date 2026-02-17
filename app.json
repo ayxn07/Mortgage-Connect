@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "MortgageConnect",
-    "slug": "mortgage-connect",
+    "slug": "MortgageConnect",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/splash-icon.png",
@@ -17,7 +17,9 @@
       "bundleIdentifier": "com.mortgageconnect.app",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -60,8 +62,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "8aac19c6-ad30-4160-a04d-32dbdb945445"
       }
-    }
+    },
+    "owner": "ayxn07"
   }
 }

@@ -1,0 +1,33 @@
+# Admin dashboard (Next.js) - not needed for mobile build
+admin/
+
+# Functions - not needed for mobile build
+functions/
+
+# Development files
+.expo/
+.vscode/
+.idea/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db

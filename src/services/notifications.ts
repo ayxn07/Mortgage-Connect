@@ -30,6 +30,9 @@ import { doc, setDoc, updateDoc, arrayUnion, arrayRemove } from '@react-native-f
 /** Android notification channel ID (must match the one in the Cloud Function) */
 export const CHAT_CHANNEL_ID = 'chat_messages';
 
+/** Android notification channel ID for application updates */
+export const APP_UPDATES_CHANNEL_ID = 'application_updates';
+
 /** Notification action IDs */
 export const NOTIFICATION_ACTIONS = {
   DEFAULT: 'default',
@@ -58,6 +61,17 @@ export async function createNotificationChannel(): Promise<void> {
       vibration: true,
     });
     console.log('[Notifications] Android channel created:', CHAT_CHANNEL_ID);
+
+    // Create application updates channel
+    await notifee.createChannel({
+      id: APP_UPDATES_CHANNEL_ID,
+      name: 'Application Updates',
+      description: 'Notifications for mortgage application status changes and document requests',
+      importance: AndroidImportance.HIGH,
+      sound: 'default',
+      vibration: true,
+    });
+    console.log('[Notifications] Android channel created:', APP_UPDATES_CHANNEL_ID);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('[Notifications] Failed to create channel:', message);
