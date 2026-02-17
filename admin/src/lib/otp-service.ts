@@ -44,9 +44,6 @@ export async function sendOTP(email: string, password: string): Promise<void> {
             throw new Error("Access denied. Admin privileges required.");
         }
 
-        // Sign out immediately - they need to verify OTP first
-        await auth.signOut();
-
         // Generate OTP
         const code = generateOTP();
         const now = Date.now();
@@ -59,9 +56,12 @@ export async function sendOTP(email: string, password: string): Promise<void> {
             attempts: 0,
         };
 
-        // Store OTP in Firestore (sanitize email for use as document ID)
+        // Store OTP in Firestore first (needs auth)
         const emailKey = sanitizeEmail(email);
         await setDoc(doc(db, "otps", emailKey), otpData);
+
+        // Sign out after OTP is stored - they need to verify OTP first
+        await auth.signOut();
 
         // Send OTP via Cloud Function
         try {
@@ -161,6 +161,17 @@ export async function verifyOTP(email: string, code: string): Promise<void> {
  */
 export async function resendOTP(email: string): Promise<void> {
     try {
+        // Get credentials from sessionStorage and sign in first
+        const pendingEmail = sessionStorage.getItem('pendingEmail');
+        const pendingPassword = sessionStorage.getItem('pendingPassword');
+        
+        if (!pendingEmail || !pendingPassword) {
+            throw new Error("Session expired. Please login again.");
+        }
+        
+        // Sign in to get auth permissions for Firestore
+        await signInWithEmailAndPassword(auth, pendingEmail, pendingPassword);
+
         // Delete existing OTP (sanitize email for use as document ID)
         const emailKey = sanitizeEmail(email);
         const otpDocRef = doc(db, "otps", emailKey);
@@ -182,6 +193,9 @@ export async function resendOTP(email: string): Promise<void> {
         };
 
         await setDoc(otpDocRef, otpData);
+        
+        // Sign out after OTP is stored
+        await auth.signOut();
 
         // Send new OTP via Cloud Function
         try {
