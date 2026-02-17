@@ -102,6 +102,17 @@ export async function sendOTP(email: string, password: string): Promise<void> {
  */
 export async function verifyOTP(email: string, code: string): Promise<void> {
     try {
+        // Get credentials from sessionStorage and sign in first
+        const pendingEmail = sessionStorage.getItem('pendingEmail');
+        const pendingPassword = sessionStorage.getItem('pendingPassword');
+        
+        if (!pendingEmail || !pendingPassword) {
+            throw new Error("Session expired. Please login again.");
+        }
+        
+        // Sign in to get auth permissions for Firestore
+        await signInWithEmailAndPassword(auth, pendingEmail, pendingPassword);
+
         // Find OTP document by email (sanitize email for use as document ID)
         const emailKey = sanitizeEmail(email);
         const otpDocRef = doc(db, "otps", emailKey);
@@ -149,9 +160,18 @@ export async function verifyOTP(email: string, code: string): Promise<void> {
         // OTP is valid - delete it
         await deleteDoc(otpDocRef);
 
+        // Sign out so auth context can complete the sign-in properly
+        await auth.signOut();
+
         // Note: The actual sign-in will happen in the auth context
         // after successful OTP verification
     } catch (error: any) {
+        // Make sure to sign out on error too
+        try {
+            await auth.signOut();
+        } catch {
+            // Ignore sign out errors
+        }
         throw error;
     }
 }
