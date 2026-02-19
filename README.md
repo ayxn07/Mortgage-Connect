@@ -1,10 +1,10 @@
-# LUXE - Premium Agent Booking App
+# MortgageConnect - Premium Agent Booking App
 
 A modern, elegant React Native mobile application built with Expo for connecting users with professional agents. Features a sleek dark/light theme, smooth animations, and an intuitive user interface.
 
 ## 📱 About the App
 
-LUXE is a premium agent booking platform that allows users to:
+MortgageConnect is a premium agent booking platform that allows users to:
 - **Discover Professional Agents**: Browse through a curated list of verified professionals
 - **Search & Filter**: Find agents by name, skills, location, and specialty
 - **View Detailed Profiles**: Access comprehensive agent information including ratings, reviews, and services
@@ -50,7 +50,7 @@ Before you begin, ensure you have the following installed:
 
 ```bash
 git clone <repository-url>
-cd luxe-app
+cd MortgageConnect-app
 ```
 
 ### 2. Install Dependencies
@@ -112,7 +112,7 @@ npm run web
 ## 📁 Project Structure
 
 ```
-luxe-app/
+MortgageConnect-app/
 ├── app/                          # App screens and navigation
 │   ├── (tabs)/                   # Tab-based screens
 │   │   ├── index.tsx            # Home screen
@@ -281,7 +281,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 📞 Support
 
-For support, email support@luxe.com or join our Slack channel.
+For support, email support@MortgageConnect.com or join our Slack channel.
 
 ---
 
