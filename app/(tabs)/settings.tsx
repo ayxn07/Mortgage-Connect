@@ -354,7 +354,15 @@ export default function SettingsScreen() {
               icon={<Shield color={getIconColor()} size={20} />}
               title="Admin Dashboard"
               subtitle="Manage users, apps & analytics"
-              onPress={() => router.push('/admin' as any)}
+              onPress={() => {
+                const adminUrl = __DEV__ 
+                  ? 'http://localhost:3000' 
+                  : 'https://admin.mortgageconnect.ae';
+                Linking.openURL(adminUrl).catch((err) => {
+                  console.error('[Settings] Failed to open admin dashboard:', err);
+                  Alert.alert('Error', 'Could not open admin dashboard');
+                });
+              }}
               useAccentColor={true}
             />
           </View>

@@ -7,6 +7,8 @@ import {
   Image,
   Dimensions,
   ActivityIndicator,
+  Linking,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -323,7 +325,16 @@ export default function HomeScreen() {
         {/* Admin Dashboard Banner */}
         {isAdmin && (
           <Pressable
-            onPress={() => router.push('/admin' as any)}
+            onPress={() => {
+              // Open admin dashboard in browser
+              const adminUrl = __DEV__ 
+                ? 'http://localhost:3000' 
+                : 'https://admin.mortgageconnect.ae';
+              Linking.openURL(adminUrl).catch((err) => {
+                console.error('[Home] Failed to open admin dashboard:', err);
+                Alert.alert('Error', 'Could not open admin dashboard');
+              });
+            }}
             className={`mx-6 mb-6 flex-row items-center rounded-3xl border-2 p-4 ${
               isDark ? 'border-[#2a2a2a] bg-[#1a1a1a]' : 'border-black bg-black'
             }`}>
